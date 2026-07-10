@@ -367,7 +367,7 @@ def has_tag(tag):
     return tag in tags
 
 
-def require_auth(fn=None, *, role=None):
+def require_auth(fn=None, *, role=None, json=False):
     """
     Decorator that requires a valid HQ session.
 
@@ -380,14 +380,39 @@ def require_auth(fn=None, *, role=None):
     @require_auth(role='leadership')
     def leadership_view(): ...  # passes for admin + leadership too
 
-    Unauthenticated → redirects to HQ login with ?next= current URL.
-    Wrong role → 403. Sets g.user for use in the route.
+    @require_auth(json=True)
+    def my_api_route(): ...  # see `json` below
+
+    Unauthenticated → redirects to HQ login with ?next= current URL, unless
+    json=True (see below). Wrong role → 403. Sets g.user for use in the route.
+
+    json: use on any route that's only ever called via fetch()/XHR — i.e. a
+        JSON API endpoint, never a full browser navigation. A redirect there
+        gets transparently followed by fetch(), landing on HQ's login HTML
+        with a 200 status: res.json() then throws, producing a misleading
+        parse error or silent fallback instead of a clean re-auth signal.
+        With json=True, an expired/missing session gets a real 401 JSON
+        response instead — apps using aj-utils.js's shared fetch wrapper
+        already have a global 401 interceptor that reacts to this correctly
+        (session-expired toast + redirect to login). Page routes reached by
+        full browser navigation should keep the default (redirect) so an
+        expired session sends the user to a real login screen.
+
+        Bug fix (2026-07-10): found during AbbVie's Phase 2 wave-review —
+        every route in aj_proxy.py's blueprint used the redirect-only
+        behavior despite being pure JSON API endpoints called via fetch()
+        from every app in the fleet, reproducing exactly the failure mode
+        this module's own usage docstring warns against. Fixed by switching
+        aj_proxy.py's routes to json=True (see aj_proxy.py) — apps' own
+        JSON-only routes (e.g. a local /api/summary) should do the same.
     """
     def decorator(f):
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
             user = _get_or_validate_user()
             if not user:
+                if json:
+                    return jsonify({'error': 'Unauthorized'}), 401
                 login_url = f'{_HQ_BASE}/login'
                 next_url = request.url.split('?')[0] if request.args.get('token') else request.url
                 return redirect(f'{login_url}?next={quote(next_url, safe="")}')

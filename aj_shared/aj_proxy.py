@@ -19,7 +19,7 @@ import logging
 from flask import Blueprint, request, jsonify, session
 from flask_cors import CORS
 
-from .aj_auth import get_current_user, require_auth
+from .aj_auth import get_current_user, require_auth, csrf_protect
 from .contract import register_contract_route
 
 logger = logging.getLogger(__name__)
@@ -159,7 +159,7 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
     # Do NOT unwrap with .get('apps', data).
 
     @bp.route('/api/apps/all')
-    @require_auth(role='admin')
+    @require_auth(role='admin', json=True)
     def proxy_apps_all():
         data, status = _hq_get('/api/apps/all')
         return jsonify(data), status
@@ -190,13 +190,13 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
         return jsonify({'ok': True})
 
     @bp.route('/api/users')
-    @require_auth
+    @require_auth(json=True)
     def proxy_users():
         data, status = _hq_get('/api/users')
         return jsonify(data), status
 
     @bp.route('/api/rates')
-    @require_auth
+    @require_auth(json=True)
     def proxy_rates():
         client = request.args.get('client', '')
         path = f'/api/rates?client={client}' if client else '/api/rates'
@@ -204,14 +204,14 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
         return jsonify(data), status
 
     @bp.route('/api/rates/lookup')
-    @require_auth
+    @require_auth(json=True)
     def proxy_rates_lookup():
         qs = request.query_string.decode()
         data, status = _hq_get(f'/api/rates/lookup?{qs}')
         return jsonify(data), status
 
     @bp.route('/api/people')
-    @require_auth
+    @require_auth(json=True)
     def proxy_people():
         item_type = request.args.get('item_type', '')
         path = f'/api/people?item_type={item_type}' if item_type else '/api/people'
@@ -219,25 +219,25 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
         return jsonify(data), status
 
     @bp.route('/api/codes')
-    @require_auth
+    @require_auth(json=True)
     def proxy_codes():
         data, status = _hq_get('/api/codes')
         return jsonify(data), status
 
     @bp.route('/api/codes/fees')
-    @require_auth
+    @require_auth(json=True)
     def proxy_codes_fees():
         data, status = _hq_get('/api/codes/fees')
         return jsonify(data), status
 
     @bp.route('/api/codes/expenses')
-    @require_auth
+    @require_auth(json=True)
     def proxy_codes_expenses():
         data, status = _hq_get('/api/codes/expenses')
         return jsonify(data), status
 
     @bp.route('/api/jobs')
-    @require_auth
+    @require_auth(json=True)
     def proxy_jobs():
         qs = request.query_string.decode()
         path = f'/api/jobs?{qs}' if qs else '/api/jobs'
@@ -245,13 +245,13 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
         return jsonify(data), status
 
     @bp.route('/api/jobs/<job_number>')
-    @require_auth
+    @require_auth(json=True)
     def proxy_jobs_single(job_number):
         data, status = _hq_get(f'/api/jobs/{job_number}')
         return jsonify(data), status
 
     @bp.route('/api/clients')
-    @require_auth
+    @require_auth(json=True)
     def proxy_clients():
         qs = request.query_string.decode()
         path = f'/api/clients?{qs}' if qs else '/api/clients'
@@ -259,7 +259,7 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
         return jsonify(data), status
 
     @bp.route('/api/contracts')
-    @require_auth
+    @require_auth(json=True)
     def proxy_contracts():
         qs = request.query_string.decode()
         path = f'/api/contracts?{qs}' if qs else '/api/contracts'
@@ -267,7 +267,8 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
         return jsonify(data), status
 
     @bp.route('/api/users/me/password', methods=['POST'])
-    @require_auth
+    @require_auth(json=True)
+    @csrf_protect
     def proxy_user_change_password():
         secret = os.environ.get('PLATFORM_SECRET', '')
         try:
@@ -287,7 +288,8 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
             return jsonify({'error': str(e)}), 502
 
     @bp.route('/api/feedback', methods=['POST'])
-    @require_auth
+    @require_auth(json=True)
+    @csrf_protect
     def proxy_feedback():
         """Forward a feedback widget submission (multipart, optional
         screenshot) to HQ. Session-gated (2026-07-09) — the feedback widget
@@ -312,7 +314,7 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
             return jsonify({'error': str(e)}), 502
 
     @bp.route('/api/dropbox/list')
-    @require_auth
+    @require_auth(json=True)
     def proxy_dropbox_list():
         secret = os.environ.get('PLATFORM_SECRET', '')
         qs = request.query_string.decode()
@@ -328,7 +330,8 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
             return jsonify({'error': str(e)}), 502
 
     @bp.route('/api/dropbox/upload', methods=['POST'])
-    @require_auth
+    @require_auth(json=True)
+    @csrf_protect
     def proxy_dropbox_upload():
         secret = os.environ.get('PLATFORM_SECRET', '')
         f = request.files.get('file')
@@ -347,7 +350,8 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
             return jsonify({'error': str(e)}), 502
 
     @bp.route('/api/email/send', methods=['POST'])
-    @require_auth
+    @require_auth(json=True)
+    @csrf_protect
     def proxy_email_send():
         secret = os.environ.get('PLATFORM_SECRET', '')
         try:

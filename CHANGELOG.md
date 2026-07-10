@@ -4,6 +4,53 @@ All notable changes to `aj-shared` are documented here. Subagents and
 retrofit sessions read this before upgrading an app's pinned version — see
 `WAVE-PLAN.md`.
 
+## [1.1.0] — 2026-07-10
+
+Two fleet-wide fixes found during AbbVie Invoicing's Phase 2 adversarial
+wave-review (`audit/abv-invoice-builder-wave-review.md`). Both affect every
+app using `aj-shared`, not just AbbVie — **verify these are actually working
+as expected during each app's own Phase 3 retrofit**, not just here.
+
+- **`require_auth()` gained a `json=` parameter.** Every route in
+  `aj_proxy.py`'s blueprint used the redirect-only behavior despite being
+  pure JSON API endpoints called via `fetch()` from every app in the fleet —
+  a session-expiry mid-use hit a 302 redirect to HQ's login HTML, which
+  `fetch()` follows transparently (200 status), so `res.json()` throws
+  instead of the app's own 401 interceptor ever getting a real 401 to react
+  to. Fixed by switching every route in `aj_proxy.py` to
+  `@require_auth(json=True)` (or `@require_auth(role=..., json=True)`) —
+  these now return a clean `401` JSON body on an expired/missing session,
+  which apps using `aj-utils.js`'s shared fetch wrapper already handle
+  correctly (session-expired toast + redirect). **Backward compatible** —
+  existing `@require_auth` / `@require_auth(role=...)` calls elsewhere keep
+  the redirect behavior unless `json=True` is added explicitly. Any app with
+  its *own* JSON-only routes (e.g. a local `/api/summary`) should add
+  `json=True` there too — AbbVie's was fixed as part of this same finding.
+- **`csrf_protect` was checking for a header nothing was actually
+  sending.** Its own docstring has claimed since v1.0.0 that "frontend calls
+  through aj-utils.js already send this header automatically on mutating
+  fetches" — that was never true. Fixed in `aj-utils.js` itself (HQ static,
+  not this package — see HQ's own deploy) to auto-attach
+  `X-Requested-With: XMLHttpRequest` on every wrapped `fetch()` call using a
+  mutating method (POST/PUT/PATCH/DELETE), so the claim in `csrf_protect`'s
+  docstring is now actually true fleet-wide with zero per-app frontend
+  changes needed. `csrf_protect` itself is unchanged in this package — this
+  entry documents the fix on the other end of the contract it depends on.
+  Also applied `@csrf_protect` to every mutating route in `aj_proxy.py`
+  (`/api/users/me/password`, `/api/feedback`, `/api/dropbox/upload`,
+  `/api/email/send`) — these were left undecorated since `csrf_protect`
+  shipped in v1.0.0.
+
+**Deploy-order dependency, read before rolling this out to any app:** the
+`aj-utils.js` fix must reach production HQ *before or at the same time as*
+any app starts enforcing its own CSRF check against the
+`X-Requested-With` header (as AbbVie's own blueprints now do — see its
+`routes/*.py`). If an app enforces the header check while production HQ is
+still serving the old `aj-utils.js`, every mutating request from that app
+breaks with a 403, because the old JS never sends the header. Confirm HQ's
+static assets are live with this fix before flipping on backend enforcement
+elsewhere.
+
 ## [1.0.2] — 2026-07-10
 
 Fixes real errors in `AJ_FLEET_ORIGINS`, found while verifying AbbVie
