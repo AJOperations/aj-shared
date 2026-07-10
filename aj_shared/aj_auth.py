@@ -120,15 +120,33 @@ def _platform_secret():
 
 def configure_session_security(app):
     """
-    Set explicit session cookie flags. Call once at app startup, after
-    app.secret_key is set.
+    Set explicit session cookie flags, and correct Flask's view of the
+    request scheme behind Railway's reverse proxy. Call once at app startup,
+    after app.secret_key is set.
 
     Don't rely on framework defaults for something this load-bearing — see
     reference-app-standards's Security Standards section.
+
+    Bug fix (2026-07-10): this previously used app.config.setdefault(), which
+    is a no-op here — Flask pre-populates SESSION_COOKIE_HTTPONLY/SAMESITE/
+    SECURE in app.config at Flask() construction time (to True/None/False
+    respectively), so setdefault() never actually overrode them. Direct
+    assignment is required to actually apply these.
+
+    Also wraps app.wsgi_app in ProxyFix (2026-07-10, same fix). Railway
+    terminates TLS at its edge and forwards to the container over plain
+    HTTP — without ProxyFix, Flask has no way to know the original request
+    was HTTPS (wsgi.url_scheme reflects the internal hop, not what the
+    browser used). request.url built from that wrong scheme is exactly what
+    require_auth() uses as the `next` redirect target sent to HQ, so a
+    scheme mismatch here can corrupt that whole redirect round-trip, not
+    just cookie flags.
     """
-    app.config.setdefault('SESSION_COOKIE_HTTPONLY', True)
-    app.config.setdefault('SESSION_COOKIE_SAMESITE', 'Lax')
-    app.config.setdefault('SESSION_COOKIE_SECURE', not app.debug)
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['SESSION_COOKIE_SECURE'] = not app.debug
 
 
 # ---------------------------------------------------------------------------

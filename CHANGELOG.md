@@ -4,6 +4,36 @@ All notable changes to `aj-shared` are documented here. Subagents and
 retrofit sessions read this before upgrading an app's pinned version — see
 `WAVE-PLAN.md`.
 
+## [1.0.1] — 2026-07-10
+
+Fixes two real bugs in `configure_session_security()`, found while
+debugging a login redirect loop on AbbVie Invoicing (first app fully on
+this package):
+
+- **`SESSION_COOKIE_HTTPONLY`/`SAMESITE`/`SECURE` were never actually being
+  set.** The previous code used `app.config.setdefault(...)`, but Flask
+  pre-populates all three of these keys in `app.config` at `Flask()`
+  construction time (to `True`/`None`/`False` respectively) — so
+  `setdefault()` was a guaranteed no-op every time. Every app calling
+  `configure_session_security()` was silently running on Flask's stock
+  defaults instead. Fixed to direct assignment.
+- **No `ProxyFix`.** Railway terminates TLS at its edge and forwards to
+  the container over plain HTTP — without `ProxyFix`, Flask has no way to
+  know the original request was HTTPS. `request.url` built from the wrong
+  scheme is exactly what `require_auth()` uses as the `next` redirect
+  target sent to HQ, so this could corrupt the whole login redirect
+  round-trip, not just cookie flags. `configure_session_security()` now
+  wraps `app.wsgi_app` in `werkzeug.middleware.proxy_fix.ProxyFix`.
+
+Both fixes verified directly: config values actually change now (confirmed
+via a real `Flask()` instance, not just reading the code), and
+`request.url`/`request.scheme` correctly report `https://` when
+`X-Forwarded-Proto: https` is present (confirmed via Flask's test client
+with that header set).
+
+No API changes — existing calls to `configure_session_security(app)` pick
+up both fixes automatically on upgrade.
+
 ## [1.0.0] — 2026-07-09
 
 Initial release. Phase 1 of the AJ Unification Wave.
