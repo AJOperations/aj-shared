@@ -4,6 +4,37 @@ All notable changes to `aj-shared` are documented here. Subagents and
 retrofit sessions read this before upgrading an app's pinned version — see
 `WAVE-PLAN.md`.
 
+## [1.0.2] — 2026-07-10
+
+Fixes real errors in `AJ_FLEET_ORIGINS`, found while verifying AbbVie
+Invoicing's pilot retrofit. The original list was built partly from
+inference (Phase 0 audits' self-reported "Live URL" lines) rather than
+values confirmed directly by Christine — two entries were wrong as a
+result:
+
+- `aj-staffing.up.railway.app` didn't exist at all. Staffing's real live
+  URL is `ajstaffingmodel.netlify.app` (current production, Netlify —
+  not being touched; an eventual Railway migration is separate, future
+  work) plus its active `ajstaffingmodel-testing.up.railway.app` testing
+  subdomain.
+- The Invoice Tracker entry, sourced from its own audit's mention of a
+  "historical Railway service slug," was also wrong. Confirmed real URL:
+  `aj-invoicing.up.railway.app`.
+
+Every entry is now either the long-standing HQ URL or a value Christine
+confirmed directly on 2026-07-10: `aj-tools.up.railway.app` (Tools — repo
+also renamed `AJFilemaker` -> `AJTools` to match, since the old name had
+drifted from the live product name), AbbVie's staging URL
+(`aj-abbvie-invoice-builder-staging.up.railway.app` — previously missing;
+only production was listed, but staging is where this wave's actual
+testing happens), and `ajbookings.up.railway.app` /
+`aj-shows.up.railway.app` / `aj-bid.up.railway.app`. Rooms doesn't get an
+entry — no auth, no backend, excluded from the wave.
+
+Lesson for future entries, going forward: confirm each app's real URL(s)
+directly with Christine, never infer from a doc alone, and add both
+production and any active staging/testing subdomain.
+
 ## [1.0.1] — 2026-07-10
 
 Fixes two real bugs in `configure_session_security()`, found while

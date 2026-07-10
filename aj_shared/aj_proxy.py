@@ -41,15 +41,27 @@ _HQ_UPLOAD_TIMEOUT = 15  # multipart forwarding (feedback screenshots, dropbox u
 # at boot).
 AJ_FLEET_ORIGINS = [
     "https://aj-hq.up.railway.app",
-    "https://ajbookings.up.railway.app",
-    "https://aj-shows.up.railway.app",
-    "https://aj-tools.up.railway.app",
-    "https://aj-bid.up.railway.app",
+    "https://aj-tools.up.railway.app",  # confirmed live by Christine 2026-07-10; repo renamed AJFilemaker -> AJTools
     "https://invoicebuilder.up.railway.app",
-    "https://aj-staffing.up.railway.app",
-    "https://aj-rooms.netlify.app",
-    # Add each new app's production hostname here as it joins the fleet —
-    # do not replace this list with a wildcard or provider-wide regex.
+    "https://aj-abbvie-invoice-builder-staging.up.railway.app",
+    "https://aj-invoicing.up.railway.app",  # Invoice Tracker, confirmed by Christine 2026-07-10
+    "https://ajstaffingmodel.netlify.app",  # current live Staffing (Netlify) — not being touched, eventual Railway migration is separate/future
+    "https://ajstaffingmodel-testing.up.railway.app",
+    "https://ajbookings.up.railway.app",  # confirmed by Christine 2026-07-10
+    "https://aj-shows.up.railway.app",    # confirmed by Christine 2026-07-10
+    "https://aj-bid.up.railway.app",      # confirmed by Christine 2026-07-10
+    # Rooms doesn't need an entry — no auth, no backend, excluded from the
+    # wave entirely (see audit/rooms.md).
+    #
+    # Bug fix (2026-07-10): this list was originally built partly from
+    # inference rather than confirmed values — "aj-staffing.up.railway.app"
+    # didn't exist at all, and the Invoice Tracker URL sourced from its own
+    # audit's "historical Railway service slug" mention was also wrong.
+    # Every entry above is now either the long-standing HQ URL or something
+    # Christine confirmed directly. Add any future app's URL(s) — both
+    # production and any active staging/testing subdomain — the same way:
+    # confirmed, never guessed, never widened to a wildcard/provider-domain
+    # regex.
 ]
 
 
