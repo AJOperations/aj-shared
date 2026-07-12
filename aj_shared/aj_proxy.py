@@ -126,7 +126,8 @@ def _hq_get(path):
         return {'error': str(e)}, 502
 
 
-def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_cors_now=True):
+def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_cors_now=True,
+                    exclude_routes=None, open_app=False):
     """
     Register the full HQ Data Proxy route set plus /api/contract on `app`.
 
@@ -135,6 +136,23 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
         production HQ URL) — mainly for local dev against a staging HQ.
     configure_cors_now: set False if the app wants to call configure_cors()
         itself with custom extra_origins timing.
+    exclude_routes: iterable of route rules (e.g. '/api/jobs',
+        '/api/jobs/<job_number>') to skip entirely, so an app with its own
+        business-logic route at that path can register it without relying on
+        Werkzeug's first-registered-wins collision behavior. Replaces the
+        "define your own route, then call register_proxy()" ordering trick
+        used by Budget Builder, Intelligence/BID, and Project Invoices —
+        that trick still works and isn't being removed, but this is the
+        explicit, documented way going forward.
+    open_app: set True for an app with no login at all (the fleet's
+        intentionally-open apps, e.g. Tools). When True, every route that
+        would normally require a valid HQ session is registered without that
+        gate, and /auth/validate always returns {'valid': False} without a
+        round-trip to HQ, instead of the standard proxy behavior. Mirrors the
+        hand-rolled "define /auth/validate and /api/feedback before
+        register_proxy() so they win on route precedence" workaround Tools'
+        retrofit needed — an open app can now just pass open_app=True instead
+        of rediscovering that trick.
     """
     global _HQ_BASE
     if hq_base:
@@ -144,8 +162,25 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
         configure_cors(app, extra_origins=extra_origins)
 
     bp = Blueprint('aj_proxy', __name__)
+    exclude_set = set(exclude_routes or [])
 
-    @bp.route('/api/apps')
+    def _route(rule, **options):
+        if rule in exclude_set:
+            def _skip(fn):
+                return fn
+            return _skip
+        return bp.route(rule, **options)
+
+    def _guard(role=None):
+        # open_app apps have no session/login concept at all — every route
+        # that would otherwise require a valid HQ session is left ungated.
+        if open_app:
+            def _noop(fn):
+                return fn
+            return _noop
+        return require_auth(role=role, json=True)
+
+    @_route('/api/apps')
     def proxy_apps():
         # Forward the already-validated local user's role so HQ's
         # min_visibility filtering (apps.min_role, migration v20) actually
@@ -159,14 +194,19 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
     # Note: pass data through directly — aj-utils.js expects { apps: [...] }.
     # Do NOT unwrap with .get('apps', data).
 
-    @bp.route('/api/apps/all')
-    @require_auth(role='admin', json=True)
+    @_route('/api/apps/all')
+    @_guard(role='admin')
     def proxy_apps_all():
         data, status = _hq_get('/api/apps/all')
         return jsonify(data), status
 
-    @bp.route('/auth/validate')
+    @_route('/auth/validate')
     def proxy_auth_validate():
+        if open_app:
+            # No login exists for this app — always report "not logged in"
+            # rather than proxying to HQ, so ajInitShell()/aj-utils.js render
+            # an empty user zone instead of crashing or redirecting.
+            return jsonify({'valid': False}), 200
         cached = session.get('_aj_user')
         if cached:
             return jsonify({'valid': True, 'user': cached}), 200
@@ -184,91 +224,91 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
         except Exception as e:
             return jsonify({'valid': False, 'error': str(e)}), 502
 
-    @bp.route('/auth/logout', methods=['POST'])
+    @_route('/auth/logout', methods=['POST'])
     def proxy_auth_logout():
         session.pop('_aj_user', None)
         session.pop('_aj_user_cached_at', None)
         return jsonify({'ok': True})
 
-    @bp.route('/api/users')
-    @require_auth(json=True)
+    @_route('/api/users')
+    @_guard()
     def proxy_users():
         data, status = _hq_get('/api/users')
         return jsonify(data), status
 
-    @bp.route('/api/rates')
-    @require_auth(json=True)
+    @_route('/api/rates')
+    @_guard()
     def proxy_rates():
         client = request.args.get('client', '')
         path = f'/api/rates?client={client}' if client else '/api/rates'
         data, status = _hq_get(path)
         return jsonify(data), status
 
-    @bp.route('/api/rates/lookup')
-    @require_auth(json=True)
+    @_route('/api/rates/lookup')
+    @_guard()
     def proxy_rates_lookup():
         qs = request.query_string.decode()
         data, status = _hq_get(f'/api/rates/lookup?{qs}')
         return jsonify(data), status
 
-    @bp.route('/api/people')
-    @require_auth(json=True)
+    @_route('/api/people')
+    @_guard()
     def proxy_people():
         item_type = request.args.get('item_type', '')
         path = f'/api/people?item_type={item_type}' if item_type else '/api/people'
         data, status = _hq_get(path)
         return jsonify(data), status
 
-    @bp.route('/api/codes')
-    @require_auth(json=True)
+    @_route('/api/codes')
+    @_guard()
     def proxy_codes():
         data, status = _hq_get('/api/codes')
         return jsonify(data), status
 
-    @bp.route('/api/codes/fees')
-    @require_auth(json=True)
+    @_route('/api/codes/fees')
+    @_guard()
     def proxy_codes_fees():
         data, status = _hq_get('/api/codes/fees')
         return jsonify(data), status
 
-    @bp.route('/api/codes/expenses')
-    @require_auth(json=True)
+    @_route('/api/codes/expenses')
+    @_guard()
     def proxy_codes_expenses():
         data, status = _hq_get('/api/codes/expenses')
         return jsonify(data), status
 
-    @bp.route('/api/jobs')
-    @require_auth(json=True)
+    @_route('/api/jobs')
+    @_guard()
     def proxy_jobs():
         qs = request.query_string.decode()
         path = f'/api/jobs?{qs}' if qs else '/api/jobs'
         data, status = _hq_get(path)
         return jsonify(data), status
 
-    @bp.route('/api/jobs/<job_number>')
-    @require_auth(json=True)
+    @_route('/api/jobs/<job_number>')
+    @_guard()
     def proxy_jobs_single(job_number):
         data, status = _hq_get(f'/api/jobs/{job_number}')
         return jsonify(data), status
 
-    @bp.route('/api/clients')
-    @require_auth(json=True)
+    @_route('/api/clients')
+    @_guard()
     def proxy_clients():
         qs = request.query_string.decode()
         path = f'/api/clients?{qs}' if qs else '/api/clients'
         data, status = _hq_get(path)
         return jsonify(data), status
 
-    @bp.route('/api/contracts')
-    @require_auth(json=True)
+    @_route('/api/contracts')
+    @_guard()
     def proxy_contracts():
         qs = request.query_string.decode()
         path = f'/api/contracts?{qs}' if qs else '/api/contracts'
         data, status = _hq_get(path)
         return jsonify(data), status
 
-    @bp.route('/api/users/me/password', methods=['POST'])
-    @require_auth(json=True)
+    @_route('/api/users/me/password', methods=['POST'])
+    @_guard()
     @csrf_protect
     def proxy_user_change_password():
         secret = os.environ.get('PLATFORM_SECRET', '')
@@ -288,8 +328,8 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
         except Exception as e:
             return jsonify({'error': str(e)}), 502
 
-    @bp.route('/api/feedback', methods=['POST'])
-    @require_auth(json=True)
+    @_route('/api/feedback', methods=['POST'])
+    @_guard()
     @csrf_protect
     def proxy_feedback():
         """Forward a feedback widget submission (multipart, optional
@@ -314,8 +354,8 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
         except Exception as e:
             return jsonify({'error': str(e)}), 502
 
-    @bp.route('/api/dropbox/list')
-    @require_auth(json=True)
+    @_route('/api/dropbox/list')
+    @_guard()
     def proxy_dropbox_list():
         secret = os.environ.get('PLATFORM_SECRET', '')
         qs = request.query_string.decode()
@@ -330,8 +370,8 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
         except Exception as e:
             return jsonify({'error': str(e)}), 502
 
-    @bp.route('/api/dropbox/upload', methods=['POST'])
-    @require_auth(json=True)
+    @_route('/api/dropbox/upload', methods=['POST'])
+    @_guard()
     @csrf_protect
     def proxy_dropbox_upload():
         secret = os.environ.get('PLATFORM_SECRET', '')
@@ -350,8 +390,8 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
         except Exception as e:
             return jsonify({'error': str(e)}), 502
 
-    @bp.route('/api/email/send', methods=['POST'])
-    @require_auth(json=True)
+    @_route('/api/email/send', methods=['POST'])
+    @_guard()
     @csrf_protect
     def proxy_email_send():
         secret = os.environ.get('PLATFORM_SECRET', '')
@@ -370,5 +410,7 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
     app.register_blueprint(bp)
 
     # /api/contract — registered automatically, zero app code, per
-    # WAVE-PLAN's Resolved decision (2026-07-09).
-    register_contract_route(app, app_name)
+    # WAVE-PLAN's Resolved decision (2026-07-09). Respect exclude_routes here
+    # too, for an app that wants to hand-roll its own /api/contract.
+    if '/api/contract' not in exclude_set:
+        register_contract_route(app, app_name)

@@ -4,6 +4,44 @@ All notable changes to `aj-shared` are documented here. Subagents and
 retrofit sessions read this before upgrading an app's pinned version — see
 `WAVE-PLAN.md`.
 
+## [1.2.0] — 2026-07-11
+
+Two additions to `register_proxy()`, both requested during Phase 3 retrofits
+that had to hand-roll workarounds for gaps this package didn't cover yet.
+**Not tagged/pushed yet — local commit only, ready for review.**
+
+- **`exclude_routes=` parameter.** Pass an iterable of route rules (e.g.
+  `exclude_routes=['/api/jobs', '/api/jobs/<job_number>']`) to skip
+  registering those routes in the blueprint entirely, so the app's own
+  business-logic route at that path is the only one that exists — no
+  reliance on Werkzeug's first-registered-wins collision behavior. Budget
+  Builder, Intelligence (BID), and Project Invoices currently work around
+  this collision by defining their own route *before* calling
+  `register_proxy()` (documented in `reference-phase3-quickref.md`) — that
+  ordering trick still works and isn't being removed, but `exclude_routes=`
+  is now the explicit, documented way going forward. Also respected by the
+  automatic `/api/contract` registration, for an app that wants to hand-roll
+  its own contract route.
+- **`open_app=True` parameter.** For the fleet's intentionally-open apps
+  (no login at all — currently just Tools). When set, every route that
+  would normally require a valid HQ session is registered without that
+  gate, and `/auth/validate` always returns `{'valid': False}` immediately
+  rather than proxying to HQ. This is exactly the workaround Tools' Phase 3
+  retrofit had to hand-roll (defining `/auth/validate` and `/api/feedback`
+  itself, before `register_proxy()`, to win on route-registration order) —
+  an open app can now pass `open_app=True` instead of rediscovering that
+  same trick. `csrf_protect` still applies to mutating routes even in
+  open-app mode (no reason to drop that protection just because there's no
+  login).
+
+Verified via a scratch venv + `app.test_client()`: `exclude_routes` keeps an
+app's own same-path route live and leaves all other routes gated as normal;
+`open_app` leaves routes locally ungated (confirmed by pointing at an
+unreachable `hq_base` and observing a network-layer 502, not our own 401,
+plus the stubbed `/auth/validate` response) while a default `register_proxy()`
+call (no new params) is unchanged — no regression to any app already on this
+package.
+
 ## [1.1.1] — 2026-07-11
 
 - **`AJ_FLEET_ORIGINS` gained `https://aj-tools-staging.up.railway.app`**,
