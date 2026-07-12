@@ -42,6 +42,7 @@ _HQ_UPLOAD_TIMEOUT = 15  # multipart forwarding (feedback screenshots, dropbox u
 AJ_FLEET_ORIGINS = [
     "https://aj-hq.up.railway.app",
     "https://aj-tools.up.railway.app",  # confirmed live by Christine 2026-07-10; repo renamed AJFilemaker -> AJTools
+    "https://aj-tools-staging.up.railway.app",  # confirmed by Christine 2026-07-11
     "https://invoicebuilder.up.railway.app",
     "https://aj-abbvie-invoice-builder-staging.up.railway.app",
     "https://aj-invoicing.up.railway.app",  # Invoice Tracker, confirmed by Christine 2026-07-10

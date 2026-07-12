@@ -4,6 +4,15 @@ All notable changes to `aj-shared` are documented here. Subagents and
 retrofit sessions read this before upgrading an app's pinned version — see
 `WAVE-PLAN.md`.
 
+## [1.1.1] — 2026-07-11
+
+- **`AJ_FLEET_ORIGINS` gained `https://aj-tools-staging.up.railway.app`**,
+  confirmed by Christine during Tools' Phase 3 retrofit session. No other
+  changes. Apps whose own staging URL is still missing from this list
+  (Bookings, Project Portal, Project Invoices, at minimum) should get their
+  entry added the same way — confirmed, never guessed — the next time
+  someone has the actual URL in hand.
+
 ## [1.1.0] — 2026-07-10
 
 Two fleet-wide fixes found during AbbVie Invoicing's Phase 2 adversarial
