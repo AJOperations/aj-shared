@@ -4,6 +4,11 @@ All notable changes to `aj-shared` are documented here. Subagents and
 retrofit sessions read this before upgrading an app's pinned version — see
 `WAVE-PLAN.md`.
 
+## [1.2.1] — 2026-07-12
+
+- **`AJ_FLEET_ORIGINS` gained `https://aj-budgets.up.railway.app`** (Budget
+  Builder), confirmed by Christine directly. No other changes.
+
 ## [1.2.0] — 2026-07-11
 
 Two additions to `register_proxy()`, both requested during Phase 3 retrofits
