@@ -4,6 +4,30 @@ All notable changes to `aj-shared` are documented here. Subagents and
 retrofit sessions read this before upgrading an app's pinned version — see
 `WAVE-PLAN.md`.
 
+## [1.3.0] — 2026-07-16
+
+- Added the opt-in `aj_shared.fastapi_integration.FastAPIHQ` adapter for
+  standalone FastAPI/Starlette apps. The adapter provides signed local HQ
+  sessions, default-deny browser authentication, `require_user`, hierarchical
+  `require_role`, `current_user`, `has_tag`, `csrf_token`, and `require_csrf`.
+- Added `install_standard_routes(app)`, covering the same HQ proxy and
+  `/api/contract` route shapes as the Flask adapter. JSON endpoints return
+  JSON 401/403 responses, cached user roles are forwarded to `/api/apps`,
+  multipart uploads retain filename/content type, and upstream failures use
+  generic bodies.
+- Added the framework-neutral `HQClient` with a five-second default timeout,
+  platform-key forwarding, typed response wrapper, and fail-closed validation.
+- FastAPI support remains optional through `aj-shared[fastapi]`; importing the
+  base package does not import or require FastAPI. Existing Flask imports,
+  behavior, and the `1.0.0` route contract are unchanged.
+- FastAPI sessions default to a 1,200-second TTL. Cookies are HttpOnly,
+  SameSite=Lax, and Secure in production. Mutations accept the exact
+  `X-Requested-With: XMLHttpRequest` header or a constant-time-checked signed
+  `_csrf` form nonce.
+- Estimate Engine is the first planned consumer. Adoption remains explicit by
+  pinning this release; existing apps stay on their current version until
+  intentionally upgraded.
+
 ## [1.2.1] — 2026-07-12
 
 - **`AJ_FLEET_ORIGINS` gained `https://aj-budgets.up.railway.app`** (Budget
@@ -13,7 +37,7 @@ retrofit sessions read this before upgrading an app's pinned version — see
 
 Two additions to `register_proxy()`, both requested during Phase 3 retrofits
 that had to hand-roll workarounds for gaps this package didn't cover yet.
-**Not tagged/pushed yet — local commit only, ready for review.**
+This release was subsequently tagged and pushed as `v1.2.0`.
 
 - **`exclude_routes=` parameter.** Pass an iterable of route rules (e.g.
   `exclude_routes=['/api/jobs', '/api/jobs/<job_number>']`) to skip
