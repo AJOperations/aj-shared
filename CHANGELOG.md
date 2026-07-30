@@ -1,25 +1,52 @@
 # Changelog
 
-All notable changes to `aj-shared` are documented here. Subagents and
-retrofit sessions read this before upgrading an app's pinned version — see
-`WAVE-PLAN.md`.
+All notable changes to `aj-shared` are documented here. Review this file
+before updating a consumer's shared-source reference.
 
-## [Unreleased]
+## [1.4.0] — 2026-07-30
 
 - Cross-app tokens are removed from safe browser page URLs immediately after
   successful validation, while preserving every unrelated query value.
-  JSON routes and non-GET requests do not redirect or lose their request body.
+  JSON routes and non-GET requests do not redirect or lose their request body
+  in either the Flask or FastAPI integration.
 - `csrf_protect` now requires the exact shared frontend proof value
-  `X-Requested-With: XMLHttpRequest`; the shared logout route now enforces it
-  before clearing the local session.
+  `X-Requested-With: XMLHttpRequest`; the Flask and FastAPI logout routes now
+  enforce CSRF before clearing the local session.
 - HQ proxy requests reject redirects, cap JSON responses at 2 MiB, reject
   feedback screenshots above HQ's existing 5 MiB limit, and return stable,
   correlated failures without exposing network or upstream response details.
-- Added focused Flask regression coverage for token cleanup, CSRF/logout,
-  redacted failures, invalid/oversize upstream responses, and screenshot
-  bounds.
-- This section is review-ready source only. No version, tag, package release,
-  consumer pin, or deployment is implied.
+  The framework-neutral `HQClient` applies the same redirect and response-size
+  boundaries for FastAPI consumers.
+- Merged the previously separate FastAPI `v1.3.0` feature line into canonical
+  `main`, preserving the optional adapter and Flask import compatibility.
+- Added focused Flask and FastAPI regression coverage for token cleanup,
+  CSRF/logout, redacted failures, invalid/oversize upstream responses,
+  screenshot bounds, and package metadata.
+- The package contract remains `1.0.0`; this is a compatible package release.
+
+## [1.3.0] — 2026-07-16
+
+- Added the opt-in `aj_shared.fastapi_integration.FastAPIHQ` adapter for
+  standalone FastAPI/Starlette apps. The adapter provides signed local HQ
+  sessions, default-deny browser authentication, `require_user`, hierarchical
+  `require_role`, `current_user`, `has_tag`, `csrf_token`, and `require_csrf`.
+- Added `install_standard_routes(app)`, covering the same HQ proxy and
+  `/api/contract` route shapes as the Flask adapter. JSON endpoints return
+  JSON 401/403 responses, cached user roles are forwarded to `/api/apps`,
+  multipart uploads retain filename/content type, and upstream failures use
+  generic bodies.
+- Added the framework-neutral `HQClient` with a five-second default timeout,
+  platform-key forwarding, typed response wrapper, and fail-closed validation.
+- FastAPI support remains optional through `aj-shared[fastapi]`; importing the
+  base package does not import or require FastAPI. Existing Flask imports,
+  behavior, and the `1.0.0` route contract are unchanged.
+- FastAPI sessions default to a 1,200-second TTL. Cookies are HttpOnly,
+  SameSite=Lax, and Secure in production. Mutations accept the exact
+  `X-Requested-With: XMLHttpRequest` header or a constant-time-checked signed
+  `_csrf` form nonce.
+- Estimate Engine is the first planned consumer. Adoption remains explicit by
+  pinning this release; existing apps stay on their current version until
+  intentionally upgraded.
 
 ## [1.2.1] — 2026-07-12
 
@@ -33,8 +60,8 @@ that had to hand-roll workarounds for gaps this package didn't cover yet.
 These changes were tagged and published. The `v1.1.1` and `v1.2.0` tags both
 resolve to the `v1.2.0` commit `1f9838e`; the historical `v1.1.1` commit is
 `38df44d`. Do not rewrite either historical tag. Current consumers remain
-pinned to their recorded immutable tags until a separately approved package
-release.
+on their recorded source reference until a separately approved consumer
+change.
 
 - **`exclude_routes=` parameter.** Pass an iterable of route rules (e.g.
   `exclude_routes=['/api/jobs', '/api/jobs/<job_number>']`) to skip
