@@ -15,6 +15,7 @@ That's it — no more pasting individual @app.route proxy functions per app.
 import os
 import json
 import logging
+import uuid
 
 from flask import Blueprint, request, jsonify, session
 from flask_cors import CORS
@@ -27,6 +28,8 @@ logger = logging.getLogger(__name__)
 _HQ_BASE = os.environ.get('AJ_HQ_BASE', 'https://aj-hq.up.railway.app')
 _HQ_TIMEOUT = 5
 _HQ_UPLOAD_TIMEOUT = 15  # multipart forwarding (feedback screenshots, dropbox uploads) needs more headroom
+_MAX_JSON_RESPONSE_BYTES = 2 * 1024 * 1024
+_FEEDBACK_MAX_BYTES = 5 * 1024 * 1024
 
 
 # ---------------------------------------------------------------------------
@@ -113,18 +116,89 @@ def build_set_clause(payload, allowed_columns):
 # Proxy blueprint
 # ---------------------------------------------------------------------------
 
-def _hq_get(path):
-    secret = os.environ.get('PLATFORM_SECRET', '')
+def _proxy_failure(operation, *, exc=None, detail=None):
+    """Return a stable public response and log only redacted diagnostics."""
+    reference_id = uuid.uuid4().hex[:12]
+    fields = {
+        'operation': operation,
+        'reference_id': reference_id,
+    }
+    if exc is not None:
+        fields['exception_type'] = type(exc).__name__
+    if detail is not None:
+        fields['detail'] = detail
+    logger.error(
+        'proxy_failure %s',
+        ' '.join(f'{key}={value}' for key, value in fields.items()),
+    )
+    return {
+        'error': 'HQ is temporarily unavailable. It is safe to retry.',
+        'reference_id': reference_id,
+    }, 502
+
+
+def _read_json_response(response, operation):
+    """Read a bounded, non-redirect HQ response and decode JSON safely."""
+    if 300 <= response.status_code < 400:
+        response.close()
+        return _proxy_failure(operation, detail='unexpected_redirect')
+
+    declared_length = response.headers.get('Content-Length')
+    if declared_length:
+        try:
+            if int(declared_length) > _MAX_JSON_RESPONSE_BYTES:
+                response.close()
+                return _proxy_failure(operation, detail='response_too_large')
+        except (TypeError, ValueError):
+            response.close()
+            return _proxy_failure(operation, detail='invalid_content_length')
+
+    body = bytearray()
+    try:
+        for chunk in response.iter_content(chunk_size=65536):
+            if not chunk:
+                continue
+            body.extend(chunk)
+            if len(body) > _MAX_JSON_RESPONSE_BYTES:
+                return _proxy_failure(operation, detail='response_too_large')
+    except Exception as exc:
+        return _proxy_failure(operation, exc=exc)
+    finally:
+        response.close()
+
+    if response.status_code == 204 and not body:
+        return {}, 204
+    try:
+        return json.loads(body.decode('utf-8')), response.status_code
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return _proxy_failure(operation, exc=exc)
+
+
+def _request_json(method, url, operation, **kwargs):
+    """Send one bounded HQ request with redirects disabled."""
     try:
         import requests as req
-        r = req.get(
-            f'{_HQ_BASE}{path}',
-            headers={'X-AJ-Key': secret},
-            timeout=_HQ_TIMEOUT,
+        response = req.request(
+            method,
+            url,
+            allow_redirects=False,
+            stream=True,
+            **kwargs,
         )
-        return r.json(), r.status_code
-    except Exception as e:
-        return {'error': str(e)}, 502
+        return _read_json_response(response, operation)
+    except Exception as exc:
+        return _proxy_failure(operation, exc=exc)
+
+
+def _hq_get(path):
+    secret = os.environ.get('PLATFORM_SECRET', '')
+    return _request_json(
+        'GET',
+        f'{_HQ_BASE}{path}',
+        f'hq_get:{path.split("?", 1)[0]}',
+        headers={'X-AJ-Key': secret},
+        timeout=_HQ_TIMEOUT,
+    )
 
 
 def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_cors_now=True,
@@ -213,19 +287,24 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
             return jsonify({'valid': True, 'user': cached}), 200
         secret = os.environ.get('PLATFORM_SECRET', '')
         token = request.args.get('token', '')
-        try:
-            import requests as req
-            r = req.get(
-                f'{_HQ_BASE}/auth/validate',
-                headers={'X-AJ-Key': secret},
-                params={'token': token} if token else {},
-                timeout=_HQ_TIMEOUT,
-            )
-            return jsonify(r.json()), r.status_code
-        except Exception as e:
-            return jsonify({'valid': False, 'error': str(e)}), 502
+        data, status = _request_json(
+            'GET',
+            f'{_HQ_BASE}/auth/validate',
+            'auth_validate',
+            headers={'X-AJ-Key': secret},
+            params={'token': token} if token else {},
+            timeout=_HQ_TIMEOUT,
+        )
+        if status == 502:
+            data = {
+                'valid': False,
+                'error': data['error'],
+                'reference_id': data['reference_id'],
+            }
+        return jsonify(data), status
 
     @_route('/auth/logout', methods=['POST'])
+    @csrf_protect
     def proxy_auth_logout():
         session.pop('_aj_user', None)
         session.pop('_aj_user_cached_at', None)
@@ -313,21 +392,19 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
     @csrf_protect
     def proxy_user_change_password():
         secret = os.environ.get('PLATFORM_SECRET', '')
-        try:
-            import requests as req
-            r = req.post(
-                f'{_HQ_BASE}/api/users/me/password',
-                headers={
-                    'X-AJ-Key': secret,
-                    'Content-Type': 'application/json',
-                    'Cookie': f'aj_session={request.cookies.get("aj_session", "")}',
-                },
-                json=request.get_json(force=True, silent=True) or {},
-                timeout=_HQ_TIMEOUT,
-            )
-            return jsonify(r.json()), r.status_code
-        except Exception as e:
-            return jsonify({'error': str(e)}), 502
+        data, status = _request_json(
+            'POST',
+            f'{_HQ_BASE}/api/users/me/password',
+            'change_password',
+            headers={
+                'X-AJ-Key': secret,
+                'Content-Type': 'application/json',
+                'Cookie': f'aj_session={request.cookies.get("aj_session", "")}',
+            },
+            json=request.get_json(force=True, silent=True) or {},
+            timeout=_HQ_TIMEOUT,
+        )
+        return jsonify(data), status
 
     @_route('/api/feedback', methods=['POST'])
     @_guard()
@@ -341,35 +418,37 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
         files = None
         if 'screenshot' in request.files and request.files['screenshot'].filename:
             f = request.files['screenshot']
+            original_position = f.stream.tell()
+            f.stream.seek(0, os.SEEK_END)
+            size = f.stream.tell()
+            f.stream.seek(original_position)
+            if size > _FEEDBACK_MAX_BYTES:
+                return jsonify({'error': 'Screenshot must be 5 MB or smaller.'}), 413
             files = {'screenshot': (f.filename, f.stream, f.mimetype)}
-        try:
-            import requests as req
-            r = req.post(
-                f'{_HQ_BASE}/api/feedback',
-                headers={'X-AJ-Key': secret},
-                data=request.form.to_dict(),
-                files=files,
-                timeout=_HQ_UPLOAD_TIMEOUT,
-            )
-            return jsonify(r.json()), r.status_code
-        except Exception as e:
-            return jsonify({'error': str(e)}), 502
+        data, status = _request_json(
+            'POST',
+            f'{_HQ_BASE}/api/feedback',
+            'feedback',
+            headers={'X-AJ-Key': secret},
+            data=request.form.to_dict(),
+            files=files,
+            timeout=_HQ_UPLOAD_TIMEOUT,
+        )
+        return jsonify(data), status
 
     @_route('/api/dropbox/list')
     @_guard()
     def proxy_dropbox_list():
         secret = os.environ.get('PLATFORM_SECRET', '')
         qs = request.query_string.decode()
-        try:
-            import requests as req
-            r = req.get(
-                f'{_HQ_BASE}/api/dropbox/list{"?" + qs if qs else ""}',
-                headers={'X-AJ-Key': secret},
-                timeout=_HQ_TIMEOUT,
-            )
-            return jsonify(r.json()), r.status_code
-        except Exception as e:
-            return jsonify({'error': str(e)}), 502
+        data, status = _request_json(
+            'GET',
+            f'{_HQ_BASE}/api/dropbox/list{"?" + qs if qs else ""}',
+            'dropbox_list',
+            headers={'X-AJ-Key': secret},
+            timeout=_HQ_TIMEOUT,
+        )
+        return jsonify(data), status
 
     @_route('/api/dropbox/upload', methods=['POST'])
     @_guard()
@@ -378,35 +457,31 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
         secret = os.environ.get('PLATFORM_SECRET', '')
         f = request.files.get('file')
         files = {'file': (f.filename, f.stream, f.mimetype)} if f else None
-        try:
-            import requests as req
-            r = req.post(
-                f'{_HQ_BASE}/api/dropbox/upload',
-                headers={'X-AJ-Key': secret},
-                data=request.form.to_dict(),
-                files=files,
-                timeout=60,
-            )
-            return jsonify(r.json()), r.status_code
-        except Exception as e:
-            return jsonify({'error': str(e)}), 502
+        data, status = _request_json(
+            'POST',
+            f'{_HQ_BASE}/api/dropbox/upload',
+            'dropbox_upload',
+            headers={'X-AJ-Key': secret},
+            data=request.form.to_dict(),
+            files=files,
+            timeout=60,
+        )
+        return jsonify(data), status
 
     @_route('/api/email/send', methods=['POST'])
     @_guard()
     @csrf_protect
     def proxy_email_send():
         secret = os.environ.get('PLATFORM_SECRET', '')
-        try:
-            import requests as req
-            r = req.post(
-                f'{_HQ_BASE}/api/email/send',
-                headers={'X-AJ-Key': secret, 'Content-Type': 'application/json'},
-                json=request.get_json(force=True, silent=True) or {},
-                timeout=_HQ_TIMEOUT,
-            )
-            return jsonify(r.json()), r.status_code
-        except Exception as e:
-            return jsonify({'error': str(e)}), 502
+        data, status = _request_json(
+            'POST',
+            f'{_HQ_BASE}/api/email/send',
+            'email_send',
+            headers={'X-AJ-Key': secret, 'Content-Type': 'application/json'},
+            json=request.get_json(force=True, silent=True) or {},
+            timeout=_HQ_TIMEOUT,
+        )
+        return jsonify(data), status
 
     app.register_blueprint(bp)
 

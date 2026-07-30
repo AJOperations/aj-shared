@@ -48,7 +48,7 @@ import os
 import time
 import logging
 import functools
-from urllib.parse import quote
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 from flask import request, redirect, g, session, abort, jsonify
 
@@ -213,7 +213,7 @@ def csrf_protect(fn):
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         if request.method in _MUTATING_METHODS:
-            if not request.headers.get('X-Requested-With'):
+            if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
                 abort(403)
         return fn(*args, **kwargs)
     return wrapper
@@ -367,6 +367,34 @@ def has_tag(tag):
     return tag in tags
 
 
+def _url_without_cross_app_token(url):
+    """Remove every one-time token value while preserving other query values."""
+    parts = urlsplit(url)
+    query = [
+        (key, value)
+        for key, value in parse_qsl(parts.query, keep_blank_values=True)
+        if key != 'token'
+    ]
+    return urlunsplit((
+        parts.scheme,
+        parts.netloc,
+        parts.path,
+        urlencode(query, doseq=True),
+        parts.fragment,
+    ))
+
+
+def _token_cleanup_redirect(*, json_route=False):
+    """Return a token-free redirect for safe browser page requests only."""
+    if (
+        json_route
+        or request.method not in {'GET', 'HEAD'}
+        or not request.args.get('token')
+    ):
+        return None
+    return redirect(_url_without_cross_app_token(request.url))
+
+
 def require_auth(fn=None, *, role=None, json=False):
     """
     Decorator that requires a valid HQ session.
@@ -416,6 +444,9 @@ def require_auth(fn=None, *, role=None, json=False):
                 login_url = f'{_HQ_BASE}/login'
                 next_url = request.url.split('?')[0] if request.args.get('token') else request.url
                 return redirect(f'{login_url}?next={quote(next_url, safe="")}')
+            token_cleanup = _token_cleanup_redirect(json_route=json)
+            if token_cleanup is not None:
+                return token_cleanup
             if role:
                 required_level = _ROLE_LEVELS.get(role, 0)
                 user_level = _ROLE_LEVELS.get(user.get('role', 'staff'), 0)
@@ -478,5 +509,8 @@ def require_auth_by_default(app, public_paths=None):
             login_url = f'{_HQ_BASE}/login'
             next_url = request.url.split('?')[0] if request.args.get('token') else request.url
             return redirect(f'{login_url}?next={quote(next_url, safe="")}')
+        token_cleanup = _token_cleanup_redirect()
+        if token_cleanup is not None:
+            return token_cleanup
         g.user = user
         return None

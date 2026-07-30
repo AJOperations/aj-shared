@@ -4,6 +4,23 @@ All notable changes to `aj-shared` are documented here. Subagents and
 retrofit sessions read this before upgrading an app's pinned version — see
 `WAVE-PLAN.md`.
 
+## [Unreleased]
+
+- Cross-app tokens are removed from safe browser page URLs immediately after
+  successful validation, while preserving every unrelated query value.
+  JSON routes and non-GET requests do not redirect or lose their request body.
+- `csrf_protect` now requires the exact shared frontend proof value
+  `X-Requested-With: XMLHttpRequest`; the shared logout route now enforces it
+  before clearing the local session.
+- HQ proxy requests reject redirects, cap JSON responses at 2 MiB, reject
+  feedback screenshots above HQ's existing 5 MiB limit, and return stable,
+  correlated failures without exposing network or upstream response details.
+- Added focused Flask regression coverage for token cleanup, CSRF/logout,
+  redacted failures, invalid/oversize upstream responses, and screenshot
+  bounds.
+- This section is review-ready source only. No version, tag, package release,
+  consumer pin, or deployment is implied.
+
 ## [1.2.1] — 2026-07-12
 
 - **`AJ_FLEET_ORIGINS` gained `https://aj-budgets.up.railway.app`** (Budget
@@ -13,7 +30,11 @@ retrofit sessions read this before upgrading an app's pinned version — see
 
 Two additions to `register_proxy()`, both requested during Phase 3 retrofits
 that had to hand-roll workarounds for gaps this package didn't cover yet.
-**Not tagged/pushed yet — local commit only, ready for review.**
+These changes were tagged and published. The `v1.1.1` and `v1.2.0` tags both
+resolve to the `v1.2.0` commit `1f9838e`; the historical `v1.1.1` commit is
+`38df44d`. Do not rewrite either historical tag. Current consumers remain
+pinned to their recorded immutable tags until a separately approved package
+release.
 
 - **`exclude_routes=` parameter.** Pass an iterable of route rules (e.g.
   `exclude_routes=['/api/jobs', '/api/jobs/<job_number>']`) to skip
