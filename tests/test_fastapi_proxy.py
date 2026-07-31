@@ -228,3 +228,25 @@ def test_contract_requires_constant_platform_key_and_reports_versions():
     assert valid.json()["contract_version"] == "1.0.0"
     assert "aj_shared_version" in valid.json()
     assert fake.calls == []
+
+
+def test_contract_reports_protected_runtime_identity(monkeypatch):
+    monkeypatch.setenv("AJ_APP_COMMIT", "3" * 40)
+    monkeypatch.setenv("AJ_SHARED_COMMIT", "4" * 40)
+    monkeypatch.setenv("AJ_RUNTIME_ENVIRONMENT", "preview")
+    client, fake = make_client()
+
+    response = client.get(
+        "/api/contract",
+        headers={"X-AJ-Key": "platform-secret"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["runtime_identity"] == {
+        "app_commit": "3" * 40,
+        "shared_commit": "4" * 40,
+        "environment": "preview",
+        "all_fields_supplied": True,
+        "provenance": "externally_supplied_build_metadata",
+    }
+    assert fake.calls == []

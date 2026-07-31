@@ -18,6 +18,13 @@ before updating a consumer's shared-source reference.
   canonical `main` now run those fixtures plus the complete package suite on
   the oldest and newest declared Python runtimes; consumer repositories remain
   out of scope.
+- The protected `/api/contract` response now carries shape-validated,
+  externally supplied app commit, resolved shared commit, and environment
+  metadata alongside the existing package and contract versions. The response
+  labels its provenance and whether all fields were supplied; exact assurance
+  still requires comparison with an immutable consumer build record. Consumer
+  build/provider injection remains a separately approved adoption step, and
+  the additive protected response does not change contract `1.0.0`.
 
 ## [1.4.0] — 2026-07-30
 

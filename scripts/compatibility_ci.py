@@ -31,6 +31,7 @@ CONTRACT_GROUPS: dict[str, tuple[str, ...]] = {
     "identity": (
         "tests/test_auth.py",
         "tests/test_fastapi_auth.py",
+        "tests/test_runtime_identity.py",
     ),
 }
 

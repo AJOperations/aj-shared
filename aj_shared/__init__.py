@@ -10,7 +10,12 @@ from .aj_auth import (
     rate_limited,
 )
 from .aj_proxy import register_proxy, build_set_clause, configure_cors, AJ_FLEET_ORIGINS
-from .contract import CONTRACT_VERSION, register_contract_route, get_aj_shared_version
+from .contract import (
+    CONTRACT_VERSION,
+    get_aj_shared_version,
+    get_runtime_identity,
+    register_contract_route,
+)
 
 __all__ = [
     'require_auth',
@@ -29,4 +34,5 @@ __all__ = [
     'CONTRACT_VERSION',
     'register_contract_route',
     'get_aj_shared_version',
+    'get_runtime_identity',
 ]

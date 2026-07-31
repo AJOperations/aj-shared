@@ -10,7 +10,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse, RedirectResponse, Response
 
-from .contract import CONTRACT_VERSION, get_aj_shared_version
+from .contract import (
+    CONTRACT_VERSION,
+    get_aj_shared_version,
+    get_runtime_identity,
+)
 from .hq_client import HQClient
 from .identity import DEFAULT_SESSION_TTL_SECONDS, identity_has_tag
 
@@ -392,6 +396,7 @@ class FastAPIHQ:
                     "app_name": self.app_name,
                     "contract_version": CONTRACT_VERSION,
                     "aj_shared_version": get_aj_shared_version(),
+                    "runtime_identity": get_runtime_identity(),
                 }
             )
 

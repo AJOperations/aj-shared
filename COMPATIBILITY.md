@@ -34,6 +34,10 @@ These are representative package fixtures, not proof that a current consumer
 build or deployed app is compatible. Every consumer adoption still records its
 resolved shared commit and runs that app's own critical journeys.
 
+The protected [runtime identity contract](RUNTIME-IDENTITY.md) explains how a
+future consumer build supplies and verifies the exact app/shared commits and
+environment without exposing arbitrary configuration.
+
 ## Hosted workflow and cost boundary
 
 `.github/workflows/compatibility.yml` runs on pull requests and on pushes to

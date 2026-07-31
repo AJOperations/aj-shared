@@ -35,3 +35,13 @@ def test_compatibility_documentation_names_local_command_and_cost_boundary():
     assert "python scripts/compatibility_ci.py" in documentation
     assert "runner-minutes" in documentation
     assert "Unknown until the first hosted run" in plain_text
+
+
+def test_runtime_identity_documentation_keeps_build_injection_separate():
+    documentation = (ROOT / "RUNTIME-IDENTITY.md").read_text()
+
+    assert "X-AJ-Key" in documentation
+    assert "AJ_APP_COMMIT" in documentation
+    assert "AJ_SHARED_COMMIT" in documentation
+    assert "AJ_RUNTIME_ENVIRONMENT" in documentation
+    assert "No consumer or provider configuration was changed here" in documentation
