@@ -3,6 +3,17 @@
 All notable changes to `aj-shared` are documented here. Review this file
 before updating a consumer's shared-source reference.
 
+## [Unreleased]
+
+- Flask and FastAPI now share one 1,200-second default identity-cache TTL and
+  one fail-closed tag normalizer. Both adapters accept list and JSON-list tag
+  claims and reject malformed or wrong-shaped values such as mappings and
+  tuples.
+- Added Flask regression coverage for the exact TTL boundary, tag claim
+  shapes, and missing-session behavior. The package and identity contract
+  versions remain unchanged because this closes an inconsistent authorization
+  edge case without changing valid inputs.
+
 ## [1.4.0] — 2026-07-30
 
 - Cross-app tokens are removed from safe browser page URLs immediately after

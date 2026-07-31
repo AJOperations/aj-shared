@@ -1,9 +1,16 @@
 import unittest
 from unittest import mock
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, session
 
-from aj_shared.aj_auth import csrf_protect, require_auth, require_auth_by_default
+from aj_shared.aj_auth import (
+    _SESSION_TTL_SECONDS,
+    _get_or_validate_user,
+    csrf_protect,
+    has_tag,
+    require_auth,
+    require_auth_by_default,
+)
 
 
 class AuthSecurityTests(unittest.TestCase):
@@ -31,6 +38,10 @@ class AuthSecurityTests(unittest.TestCase):
         @require_auth(json=True)
         def protected_json():
             return jsonify({"ok": True})
+
+        @app.get("/tag/<tag>")
+        def tag(tag):
+            return jsonify({"present": has_tag(tag)})
 
         return app
 
@@ -117,6 +128,62 @@ class AuthSecurityTests(unittest.TestCase):
             response.headers["Location"],
             "https://app.example/protected?tab=home",
         )
+
+    def test_flask_session_expires_at_same_1200_second_boundary_as_fastapi(self):
+        app = self.make_app()
+        user = {
+            "id": "u1",
+            "role": "staff",
+            "tags": [],
+        }
+
+        self.assertEqual(_SESSION_TTL_SECONDS, 1_200)
+        with app.test_request_context("/protected"):
+            session["_aj_user"] = user
+            session["_aj_user_cached_at"] = 1_000.0
+            with mock.patch("aj_shared.aj_auth.time.time", return_value=2_199.0):
+                self.assertEqual(_get_or_validate_user(), user)
+
+        with app.test_request_context("/protected"):
+            session["_aj_user"] = user
+            session["_aj_user_cached_at"] = 1_000.0
+            with mock.patch("aj_shared.aj_auth.time.time", return_value=2_200.0):
+                self.assertIsNone(_get_or_validate_user())
+            self.assertNotIn("_aj_user", session)
+            self.assertNotIn("_aj_user_cached_at", session)
+
+    def test_flask_has_tag_matches_fastapi_list_only_contract(self):
+        cases = (
+            (["estimating"], "estimating", True),
+            ('["finance"]', "finance", True),
+            ("not-json", "finance", False),
+            ({"finance": True}, "finance", False),
+            (("finance",), "finance", False),
+            (None, "finance", False),
+        )
+
+        for tags, requested, expected in cases:
+            with self.subTest(tags=tags):
+                client = self.make_app().test_client()
+                with client.session_transaction() as local_session:
+                    local_session["_aj_user"] = {
+                        "id": "u1",
+                        "role": "staff",
+                        "tags": tags,
+                    }
+                    local_session["_aj_user_cached_at"] = 9_999_999_999.0
+                response = client.get(f"/tag/{requested}")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(
+                    response.get_json(),
+                    {"present": expected},
+                )
+
+    def test_flask_has_tag_returns_false_without_a_session(self):
+        response = self.make_app().test_client().get("/tag/finance")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"present": False})
 
 
 if __name__ == "__main__":
