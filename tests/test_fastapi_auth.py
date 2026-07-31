@@ -193,6 +193,11 @@ def test_tampered_cookie_is_not_trusted():
     client, _ = make_client()
     login(client)
     cookie = client.cookies.get("aj_app_session")
+    # Replace the signed cookie instead of adding a second cookie with a
+    # different domain. Cookie parsing order differs across supported Python
+    # stacks, so a duplicate can accidentally exercise the original valid
+    # cookie rather than the tampered value.
+    client.cookies.delete("aj_app_session", domain="testserver.local", path="/")
     client.cookies.set("aj_app_session", f"{cookie}tampered")
 
     response = client.get("/private", follow_redirects=False)
