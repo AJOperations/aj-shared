@@ -13,6 +13,11 @@ before updating a consumer's shared-source reference.
   shapes, and missing-session behavior. The package and identity contract
   versions remain unchanged because this closes an inconsistent authorization
   edge case without changing valid inputs.
+- Added a local/CI fleet-compatibility command covering representative Flask,
+  FastAPI, open-app, file-processing, and identity contracts. Pull requests and
+  canonical `main` now run those fixtures plus the complete package suite on
+  the oldest and newest declared Python runtimes; consumer repositories remain
+  out of scope.
 
 ## [1.4.0] — 2026-07-30
 
