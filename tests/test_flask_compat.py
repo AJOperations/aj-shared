@@ -21,6 +21,7 @@ def test_existing_public_exports_remain_available():
         "CONTRACT_VERSION",
         "register_contract_route",
         "get_aj_shared_version",
+        "get_runtime_identity",
     }
     assert expected <= set(aj_shared.__all__)
 

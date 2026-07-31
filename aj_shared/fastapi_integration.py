@@ -1,6 +1,5 @@
 """FastAPI integration for AJ HQ authentication and signed local sessions."""
 
-import json
 import hmac
 import secrets
 import time
@@ -11,8 +10,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse, RedirectResponse, Response
 
-from .contract import CONTRACT_VERSION, get_aj_shared_version
+from .contract import (
+    CONTRACT_VERSION,
+    get_aj_shared_version,
+    get_runtime_identity,
+)
 from .hq_client import HQClient
+from .identity import DEFAULT_SESSION_TTL_SECONDS, identity_has_tag
 
 _FEEDBACK_MAX_BYTES = 5 * 1024 * 1024
 
@@ -39,7 +43,7 @@ class FastAPIHQ:
         app_base_url: str,
         app_secret_key: str,
         platform_secret: str,
-        session_ttl_seconds: int = 1200,
+        session_ttl_seconds: int = DEFAULT_SESSION_TTL_SECONDS,
         production: bool = True,
         client: Optional[HQClient] = None,
     ) -> None:
@@ -171,15 +175,7 @@ class FastAPIHQ:
 
     def has_tag(self, request: Request, tag: str) -> bool:
         user = self.current_user(request)
-        if user is None:
-            return False
-        tags = user.get("tags", [])
-        if isinstance(tags, str):
-            try:
-                tags = json.loads(tags)
-            except (TypeError, json.JSONDecodeError):
-                return False
-        return isinstance(tags, list) and tag in tags
+        return identity_has_tag(user, tag)
 
     def csrf_token(self, request: Request) -> str:
         if self.current_user(request) is None:
@@ -400,6 +396,7 @@ class FastAPIHQ:
                     "app_name": self.app_name,
                     "contract_version": CONTRACT_VERSION,
                     "aj_shared_version": get_aj_shared_version(),
+                    "runtime_identity": get_runtime_identity(),
                 }
             )
 

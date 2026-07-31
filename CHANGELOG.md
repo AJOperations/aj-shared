@@ -3,6 +3,29 @@
 All notable changes to `aj-shared` are documented here. Review this file
 before updating a consumer's shared-source reference.
 
+## [Unreleased]
+
+- Flask and FastAPI now share one 1,200-second default identity-cache TTL and
+  one fail-closed tag normalizer. Both adapters accept list and JSON-list tag
+  claims and reject malformed or wrong-shaped values such as mappings and
+  tuples.
+- Added Flask regression coverage for the exact TTL boundary, tag claim
+  shapes, and missing-session behavior. The package and identity contract
+  versions remain unchanged because this closes an inconsistent authorization
+  edge case without changing valid inputs.
+- Added a local/CI fleet-compatibility command covering representative Flask,
+  FastAPI, open-app, file-processing, and identity contracts. Pull requests and
+  canonical `main` now run those fixtures plus the complete package suite on
+  the oldest and newest declared Python runtimes; consumer repositories remain
+  out of scope.
+- The protected `/api/contract` response now carries shape-validated,
+  externally supplied app commit, resolved shared commit, and environment
+  metadata alongside the existing package and contract versions. The response
+  labels its provenance and whether all fields were supplied; exact assurance
+  still requires comparison with an immutable consumer build record. Consumer
+  build/provider injection remains a separately approved adoption step, and
+  the additive protected response does not change contract `1.0.0`.
+
 ## [1.4.0] — 2026-07-30
 
 - Cross-app tokens are removed from safe browser page URLs immediately after
