@@ -240,6 +240,7 @@ class FastAPIHQ:
             "/api/dropbox/list",
             "/api/dropbox/upload",
             "/api/email/send",
+            "/api/monday/query",
             "/api/apps/all",
         )
         self.public_paths = tuple(
@@ -345,6 +346,13 @@ class FastAPIHQ:
         )
         async def proxy_email(request: Request) -> JSONResponse:
             return await post_json(request, "/api/email/send")
+
+        @router.post(
+            "/api/monday/query",
+            dependencies=[Depends(self.require_user), Depends(self.require_csrf)],
+        )
+        async def proxy_monday_query(request: Request) -> JSONResponse:
+            return await post_json(request, "/api/monday/query")
 
         async def post_multipart(
             request: Request, upstream_path: str

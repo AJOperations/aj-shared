@@ -1,4 +1,5 @@
 import io
+import os
 import unittest
 from unittest import mock
 
@@ -141,6 +142,76 @@ class ProxySecurityTests(unittest.TestCase):
             "Screenshot must be 5 MB or smaller.",
         )
         request.assert_not_called()
+
+    @mock.patch("requests.request")
+    def test_monday_query_forwards_body_to_hq_with_platform_secret(self, request):
+        request.return_value = StubResponse(b'{"data": {"boards": []}}')
+        payload = {"query": "{ boards { id } }", "variables": {"limit": 1}}
+
+        with mock.patch.dict(os.environ, {"PLATFORM_SECRET": "platform-secret"}):
+            response = self.make_client().post(
+                "/api/monday/query",
+                json=payload,
+                headers={"X-Requested-With": "XMLHttpRequest"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"data": {"boards": []}})
+        method, url = request.call_args.args
+        self.assertEqual(method, "POST")
+        self.assertEqual(url, "https://hq.example/api/monday/query")
+        self.assertEqual(
+            request.call_args.kwargs["headers"]["X-AJ-Key"],
+            "platform-secret",
+        )
+        self.assertEqual(request.call_args.kwargs["json"], payload)
+        self.assertFalse(request.call_args.kwargs["allow_redirects"])
+        self.assertTrue(request.call_args.kwargs["stream"])
+
+    @mock.patch("requests.request")
+    def test_monday_query_passes_hq_rejection_status_through(self, request):
+        request.return_value = StubResponse(
+            b'{"error": "\'query\' is required"}',
+            status_code=400,
+        )
+
+        response = self.make_client().post(
+            "/api/monday/query",
+            json={},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {"error": "'query' is required"})
+
+    @mock.patch("requests.request")
+    def test_monday_query_requires_csrf_proof(self, request):
+        response = self.make_client().post(
+            "/api/monday/query",
+            json={"query": "{ me { id } }"},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        request.assert_not_called()
+
+    @mock.patch("requests.request")
+    def test_monday_query_rejects_hq_redirect(self, request):
+        response_obj = StubResponse(
+            b'{"data": "not read"}',
+            status_code=302,
+            headers={"Location": "https://redirected.example"},
+        )
+        request.return_value = response_obj
+
+        response = self.make_client().post(
+            "/api/monday/query",
+            json={"query": "{ me { id } }"},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+
+        self.assertEqual(response.status_code, 502)
+        self.assertTrue(response_obj.closed)
+        self.assertNotIn("redirected.example", response.get_data(as_text=True))
 
 
 if __name__ == "__main__":

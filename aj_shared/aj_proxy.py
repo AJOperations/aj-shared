@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 _HQ_BASE = os.environ.get('AJ_HQ_BASE', 'https://aj-hq.up.railway.app')
 _HQ_TIMEOUT = 5
 _HQ_UPLOAD_TIMEOUT = 15  # multipart forwarding (feedback screenshots, dropbox uploads) needs more headroom
+_HQ_MONDAY_TIMEOUT = 35  # HQ gives Monday itself 30s; this has to outlast that or we time out on HQ's own upstream wait
 _MAX_JSON_RESPONSE_BYTES = 2 * 1024 * 1024
 _FEEDBACK_MAX_BYTES = 5 * 1024 * 1024
 
@@ -480,6 +481,26 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
             headers={'X-AJ-Key': secret, 'Content-Type': 'application/json'},
             json=request.get_json(force=True, silent=True) or {},
             timeout=_HQ_TIMEOUT,
+        )
+        return jsonify(data), status
+
+    @_route('/api/monday/query', methods=['POST'])
+    @_guard()
+    @csrf_protect
+    def proxy_monday_query():
+        """Forward one GraphQL query to HQ's Monday relay. HQ is the fleet's
+        single holder of MONDAY_TOKEN — no app ever sees the raw credential.
+        The caller's body ({'query': ..., 'variables': {...}}) goes through
+        unchanged, as does HQ's response and status: Monday's own JSON on
+        success, HQ's error shape on a rejected or failed relay."""
+        secret = os.environ.get('PLATFORM_SECRET', '')
+        data, status = _request_json(
+            'POST',
+            f'{_HQ_BASE}/api/monday/query',
+            'monday_query',
+            headers={'X-AJ-Key': secret, 'Content-Type': 'application/json'},
+            json=request.get_json(force=True, silent=True) or {},
+            timeout=_HQ_MONDAY_TIMEOUT,
         )
         return jsonify(data), status
 

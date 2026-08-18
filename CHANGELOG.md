@@ -3,6 +3,36 @@
 All notable changes to `aj-shared` are documented here. Review this file
 before updating a consumer's shared-source reference.
 
+## [1.5.0] — 2026-08-18
+
+- **New proxy route: `POST /api/monday/query`.** Forwards a GraphQL query to
+  HQ's Monday relay (`AJ-HQ`'s own `POST /api/monday/query`, added in the same
+  effort) with `PLATFORM_SECRET` attached, exactly as the existing HQ data
+  routes do. HQ is the fleet's single holder of `MONDAY_TOKEN` — apps call
+  this route and never see the raw credential, the same custody split already
+  used for Dropbox and SMTP. The caller's body
+  (`{'query': ..., 'variables': {...}}`) is passed through unchanged, as is
+  HQ's response and status: Monday's own JSON on success, HQ's error shape on
+  a rejected (`400`/`413`) or failed (`502`) relay. Session-gated and
+  `@csrf_protect`ed like every other mutating route, and routed through
+  `_request_json()` so the existing redirect rejection and 2 MiB response cap
+  apply unchanged.
+- The route's HQ timeout is `_HQ_MONDAY_TIMEOUT` (35s), not the standard 5s:
+  HQ gives Monday itself 30s, so a 5s client-side wait would abandon the
+  request before HQ's own upstream call could finish. Same reason
+  `_HQ_UPLOAD_TIMEOUT` already exists for multipart forwarding.
+- The FastAPI integration gained the matching `POST /api/monday/query` route
+  in `install_standard_routes()`, including the public-path entry that makes
+  a signed-out call return JSON `401` instead of a browser login redirect.
+  It uses `HQClient`'s standard timeout — per-call timeouts aren't part of
+  that client's surface, the same way its multipart uploads don't get Flask's
+  longer upload timeout either.
+- Added Flask and FastAPI coverage for the new route: body/secret forwarding,
+  upstream status and shape pass-through, CSRF enforcement, redirect
+  rejection, and the JSON-401 signed-out path.
+- The package contract remains `1.0.0` — this route is additive, so no
+  existing app's contract shape changes.
+
 ## [1.4.0] — 2026-07-30
 
 - Cross-app tokens are removed from safe browser page URLs immediately after

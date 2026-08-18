@@ -141,6 +141,11 @@ def test_logout_requires_csrf_and_clears_local_session():
     [
         ("/api/users/me/password", {"password": "new"}, "/api/users/me/password"),
         ("/api/email/send", {"to": "ada@example.com"}, "/api/email/send"),
+        (
+            "/api/monday/query",
+            {"query": "{ boards { id } }", "variables": {"limit": 1}},
+            "/api/monday/query",
+        ),
     ],
 )
 def test_json_mutations_forward_payload_and_require_csrf(route, payload, upstream):
@@ -156,6 +161,39 @@ def test_json_mutations_forward_payload_and_require_csrf(route, payload, upstrea
     assert denied.status_code == 403
     assert accepted.status_code == 200
     assert fake.calls[0][0:3] == ("post_json", upstream, payload)
+
+
+def test_monday_query_passes_upstream_shape_and_status_through():
+    client, fake = make_client()
+    fake.result = HQResponse(200, {"errors": [{"message": "Parse error"}]})
+
+    response = client.post(
+        "/api/monday/query",
+        json={"query": "{ nope }"},
+        headers={"X-Requested-With": "XMLHttpRequest"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"errors": [{"message": "Parse error"}]}
+    assert fake.calls == [
+        ("post_json", "/api/monday/query", {"query": "{ nope }"}, {})
+    ]
+
+
+def test_monday_query_returns_json_401_instead_of_browser_redirect():
+    client, fake = make_client()
+    client.cookies.clear()
+
+    response = client.post(
+        "/api/monday/query",
+        json={"query": "{ me { id } }"},
+        headers={"X-Requested-With": "XMLHttpRequest"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Unauthorized"}
+    assert fake.calls == []
 
 
 @pytest.mark.parametrize(
