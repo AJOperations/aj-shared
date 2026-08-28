@@ -3,6 +3,11 @@
 All notable changes to `aj-shared` are documented here. Review this file
 before updating a consumer's shared-source reference.
 
+## [1.4.1] — 2026-08-28
+
+- **`AJ_FLEET_ORIGINS` gained `https://aj-insights.up.railway.app`** (AJ
+  Insights Library), confirmed by Christine directly. No other changes.
+
 ## [1.4.0] — 2026-07-30
 
 - Cross-app tokens are removed from safe browser page URLs immediately after
