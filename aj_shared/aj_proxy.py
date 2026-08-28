@@ -55,6 +55,7 @@ AJ_FLEET_ORIGINS = [
     "https://aj-shows.up.railway.app",    # confirmed by Christine 2026-07-10
     "https://aj-bid.up.railway.app",      # confirmed by Christine 2026-07-10
     "https://aj-budgets.up.railway.app",  # Budget Builder, confirmed by Christine 2026-07-12
+    "https://aj-insights.up.railway.app",  # AJ Insights Library, confirmed by Christine 2026-08-28
     # Rooms doesn't need an entry — no auth, no backend, excluded from the
     # wave entirely (see audit/rooms.md).
     #
