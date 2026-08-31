@@ -1,4 +1,3 @@
-# Claude instructions
+# Claude entry point
 
-Follow `AGENTS.md` and `README.md`. Treat consumer adoption and package
-distribution as separate decisions from a local documentation change.
+Read and follow [`AGENTS.md`](AGENTS.md). It is the single contributor instruction and context-routing source for this repository.
