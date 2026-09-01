@@ -3,6 +3,31 @@
 All notable changes to `aj-shared` are documented here. Review this file
 before updating a consumer's shared-source reference.
 
+## [1.5.0] — 2026-08-31
+
+- Added `HQClient` convenience methods for the new AJ Core v1 read/write
+  contracts published by `AJOperations/aj-hq` (Core Candidate Schema Phase
+  1): `get_core_person`/`list_core_people`, `get_core_client`/
+  `list_core_clients`, `get_core_pricing_role`/`list_core_pricing_roles`,
+  `list_core_disciplines`, `get_core_vendor`/`list_core_vendors`/
+  `create_core_vendor`, `get_core_project_series`/`list_core_project_series`/
+  `create_core_project_series`. Every method is a thin wrapper over the
+  existing `get_json`/`post_json` primitives — same `HQResponse` shape, same
+  fail-closed behavior (a 502 "HQ temporarily unavailable" on any transport
+  failure, distinguishable from a 404), no new dataclasses.
+- `HQClient` accepts optional `service_id`/`service_key` constructor
+  arguments and sends them as `X-AJ-Service`/`X-AJ-Service-Key` on every
+  request, alongside the existing `X-AJ-Key` platform secret. Core's read
+  routes accept either credential; its two write routes
+  (`create_core_vendor`, `create_core_project_series`) require a scoped
+  service credential and deliberately do not accept the platform secret.
+- Added `CORE_API_PREFIX` and `CORE_SERVICE_SCOPES` constants (also exported
+  from the package root) documenting the versioned path prefix and the
+  Core-specific scope names a service credential can be granted.
+- The package contract remains `1.0.0`; this is a compatible package release
+  and does not change the standard proxy contract `register_proxy()`
+  implements.
+
 ## [1.4.1] — 2026-08-28
 
 - **`AJ_FLEET_ORIGINS` gained `https://aj-insights.up.railway.app`** (AJ

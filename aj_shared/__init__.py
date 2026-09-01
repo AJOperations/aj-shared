@@ -11,6 +11,7 @@ from .aj_auth import (
 )
 from .aj_proxy import register_proxy, build_set_clause, configure_cors, AJ_FLEET_ORIGINS
 from .contract import CONTRACT_VERSION, register_contract_route, get_aj_shared_version
+from .hq_client import CORE_API_PREFIX, CORE_SERVICE_SCOPES
 
 __all__ = [
     'require_auth',
@@ -29,4 +30,6 @@ __all__ = [
     'CONTRACT_VERSION',
     'register_contract_route',
     'get_aj_shared_version',
+    'CORE_API_PREFIX',
+    'CORE_SERVICE_SCOPES',
 ]
