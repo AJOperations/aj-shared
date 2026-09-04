@@ -1,31 +1,50 @@
 # Current handoff
 
-Last verified: 2026-09-01
+Last verified: 2026-09-04
 Branch: main
-Last verified commit: 6f5425d (no new commit made — a tag was cut on this existing commit)
+Release line: `v1.6.0`
 
 ## Active objective
 
-No active build work in progress. Only action this session: cut and pushed the `v1.5.0` tag at the existing commit `6f5425dd1ada901c4c61b17f16bfde4694888d24` (the CHANGELOG.md entry for 1.5.0 already existed, describing the AJ Core v1 HQClient methods — it had just never been tagged). Done in response to a production incident in `aj-budget-builder`: that app was pinned to `aj-shared@main` (a floating ref), a stale build cache served an install missing `HQClient.list_core_clients`, and the app crash-looped. Per this repo's own CHANGELOG.md `## Notes` convention ("pin a tagged release, never main"), consumer apps should pin to `@v1.5.0` (or newer), not `@main`. Full incident writeup: `aj-budget-builder`'s `docs/HANDOFF.md`.
+The neutral AJ Core Job client surface is complete. Version 1.6.0 adds `core.job.read`, `HQClient.get_core_job(hq_job_id)`, and cursor-capable `HQClient.list_core_jobs(limit, cursor)`. Both call AJ HQ's additive, versioned `/api/core/v1/jobs` contract. No consumer app was migrated in this session.
 
 ## Current verified state
-- Local:
-- Committed:
-- Pushed:
-- Merged:
-- Staging deployed:
-- Staging verified:
-- Production deployed:
-- Production verified:
+- Local: clean after the release commit.
+- Committed: Job methods, scope, tests, metadata, CHANGELOG, and README are committed on `main`.
+- Pushed: publish `main` and immutable `v1.6.0` tag as the final release action for this handoff.
+- Merged: direct `main` release; no pull request was required.
+- Staging deployed: not applicable — this is a Python library.
+- Staging verified: not applicable.
+- Production deployed: consumer adoption is intentionally deferred.
+- Production verified: the upstream AJ HQ Job contract is already live; unauthenticated production requests return its expected 401 rather than a route 404.
 
 ## Next actions
 
+- Publish `main`, verify its CI, and create/push the immutable `v1.6.0` tag.
+- In separate, one-repository passes, upgrade each approved consumer and add only its canonical `hq_job_id` storage/backfill. Preserve Job # compatibility reads and quarantine ambiguous mappings.
+- Do not treat this package release as consumer adoption or as authority to alter Job workflows.
+
 ## Blockers / unknowns
+
+None for this library release. Consumer-by-consumer field migration remains deliberately deferred.
 
 ## Do not touch
 
+- Do not change AJ HQ legacy `/api/jobs/*` routes; the Core Job routes are additive.
+- Do not add vendor auto-creation, Sage ingestion, or contract/PO fields here.
+- Do not pin consumers to `@main`; use an immutable tag.
+
 ## Relevant files
 
+- `aj_shared/hq_client.py` — Core Job read methods.
+- `pyproject.toml` — version 1.6.0.
+- `tests/test_hq_client_core.py` — route and scope coverage.
+- `CHANGELOG.md` and `README.md` — published API surface.
+
 ## Verification
+
+- `pytest -q`: 86 passed (two third-party deprecation warnings only).
+- `python -m build --wheel`: built `aj_shared-1.6.0-py3-none-any.whl` successfully.
+- `git diff --check`: clean.
 
 > Overwrite this file when transferring active work between agents/tools. Keep only current state that matters to the next agent; do not append a running history.
