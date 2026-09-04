@@ -11,7 +11,7 @@ The neutral AJ Core Job client surface is complete. Version 1.6.0 adds `core.job
 ## Current verified state
 - Local: clean after the release commit.
 - Committed: Job methods, scope, tests, metadata, CHANGELOG, and README are committed on `main`.
-- Pushed: publish `main` and immutable `v1.6.0` tag as the final release action for this handoff.
+- Pushed: `main` is published at the release handoff commit `3a3662d`; immutable tag `v1.6.0` is published at that same commit.
 - Merged: direct `main` release; no pull request was required.
 - Staging deployed: not applicable — this is a Python library.
 - Staging verified: not applicable.
@@ -20,7 +20,6 @@ The neutral AJ Core Job client surface is complete. Version 1.6.0 adds `core.job
 
 ## Next actions
 
-- Publish `main`, verify its CI, and create/push the immutable `v1.6.0` tag.
 - In separate, one-repository passes, upgrade each approved consumer and add only its canonical `hq_job_id` storage/backfill. Preserve Job # compatibility reads and quarantine ambiguous mappings.
 - Do not treat this package release as consumer adoption or as authority to alter Job workflows.
 
