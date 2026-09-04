@@ -27,6 +27,7 @@ CORE_API_PREFIX = "/api/core/v1"
 # not accept PLATFORM_SECRET — pass service_id/service_key to the
 # constructor for those.
 CORE_SERVICE_SCOPES = frozenset({
+    "core.job.read",
     "core.person.read",
     "core.client.read",
     "core.pricing_role.read",
@@ -209,6 +210,15 @@ class HQClient:
         self, limit: Optional[int] = None, cursor: Optional[str] = None
     ) -> HQResponse:
         return self.get_json(f"{CORE_API_PREFIX}/clients", self._list_params(limit, cursor))
+
+    def get_core_job(self, hq_job_id: str) -> HQResponse:
+        """Read a Job by its canonical HQ identity, never by Job #."""
+        return self.get_json(f"{CORE_API_PREFIX}/jobs/{hq_job_id}")
+
+    def list_core_jobs(
+        self, limit: Optional[int] = None, cursor: Optional[str] = None
+    ) -> HQResponse:
+        return self.get_json(f"{CORE_API_PREFIX}/jobs", self._list_params(limit, cursor))
 
     def get_core_pricing_role(self, core_pricing_role_id: str) -> HQResponse:
         return self.get_json(f"{CORE_API_PREFIX}/pricing-roles/{core_pricing_role_id}")

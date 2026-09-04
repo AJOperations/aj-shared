@@ -18,6 +18,7 @@ def test_core_api_prefix_is_versioned():
 
 def test_core_service_scopes_cover_every_read_and_write_scope():
     assert CORE_SERVICE_SCOPES == {
+        "core.job.read",
         "core.person.read", "core.client.read",
         "core.pricing_role.read", "core.discipline.read",
         "core.vendor.read", "core.vendor.write",
@@ -59,6 +60,21 @@ def test_get_core_client_builds_the_correct_path():
     assert response.status_code == 200
     _, url, _ = session.calls[0]
     assert url == "https://hq.example/api/core/v1/clients/cl_1"
+
+
+def test_get_core_job_and_list_build_the_id_first_paths():
+    session = FakeSession(FakeResponse(200, {"hq_job_id": "a" * 32}))
+    response = _client(session).get_core_job("a" * 32)
+
+    assert response.status_code == 200
+    _, url, _ = session.calls[0]
+    assert url == f"https://hq.example/api/core/v1/jobs/{'a' * 32}"
+
+    session2 = FakeSession(FakeResponse(200, {"items": [], "next_cursor": None}))
+    _client(session2).list_core_jobs(limit=25, cursor="job-cursor")
+    _, url2, kwargs2 = session2.calls[0]
+    assert url2 == "https://hq.example/api/core/v1/jobs"
+    assert kwargs2["params"] == {"limit": "25", "cursor": "job-cursor"}
 
 
 def test_get_core_pricing_role_and_list():

@@ -1,6 +1,6 @@
 # aj-shared
 
-Shared authentication, HQ proxy, and contract-versioning package for AJ internal applications. The current package version is `1.4.0`; the shared route contract remains `1.0.0`.
+Shared authentication, HQ proxy, and contract-versioning package for AJ internal applications. The current package version is `1.6.0`; the shared route contract remains `1.0.0`.
 
 ## What it provides
 

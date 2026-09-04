@@ -3,6 +3,14 @@
 All notable changes to `aj-shared` are documented here. Review this file
 before updating a consumer's shared-source reference.
 
+## [1.6.0] — 2026-09-04
+
+- Added `HQClient.get_core_job` and `HQClient.list_core_jobs` for AJ Core's
+  ID-first Job contract at `/api/core/v1/jobs`. Both use canonical
+  `hq_job_id`; Job # remains an alias returned by HQ, never a route key here.
+- Added `core.job.read` to `CORE_SERVICE_SCOPES`. This is a compatible package
+  release; the standard proxy contract remains `1.0.0`.
+
 ## [1.5.0] — 2026-08-31
 
 - Added `HQClient` convenience methods for the new AJ Core v1 read/write
