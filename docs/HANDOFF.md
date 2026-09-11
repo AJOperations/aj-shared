@@ -40,10 +40,11 @@ No consumer app is upgraded by this release.
 
 ## Next actions
 
-1. Start the separately scoped Entra/EasyAuth claims-adapter design and prove
-   it first in HQ. EasyAuth performs sign-in; `aj-shared` should translate an
-   already-verified principal to AJ's existing `id`, `name`, `email`, `role`,
-   and `tags` model, failing closed on missing or ambiguous claims.
+1. Migrate HQ home to Azure, then prove the separately scoped Entra/EasyAuth
+   claims adapter against its real injected claims. EasyAuth performs sign-in;
+   a later v2.x package release should translate the verified principal to
+   AJ's existing `id`, `name`, `email`, `role`, and `tags` model, failing
+   closed on missing or ambiguous claims.
 2. Update approved consumers one repository at a time to the immutable
    `v2.0.0` tag only when their own migration, critical-journey verification,
    and rollback path are approved. Preserve Job # compatibility and quarantine
