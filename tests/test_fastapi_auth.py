@@ -5,6 +5,7 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.testclient import TestClient
 
 from aj_shared.fastapi_integration import FastAPIHQ
+from aj_shared.identity import identity_has_tag
 
 
 USER = {
@@ -212,7 +213,7 @@ def test_cookie_security_flags_follow_environment():
     assert "secure" in production_response.headers["set-cookie"].lower()
 
 
-def test_has_tag_handles_lists_json_and_malformed_values():
+def test_has_tag_accepts_only_lists_or_json_lists():
     client, fake = make_client()
     login(client)
     app = client.app
@@ -236,3 +237,13 @@ def test_has_tag_handles_lists_json_and_malformed_values():
     fake.valid_user = {**USER, "tags": "not-json"}
     login(client)
     assert client.get("/tag/finance").json() == {"present": False}
+
+    client.post("/local-logout")
+    fake.valid_user = {**USER, "tags": {"finance": True}}
+    login(client)
+    assert client.get("/tag/finance").json() == {"present": False}
+
+    # Starlette serializes a tuple in its signed JSON session as an array. Test
+    # the raw helper separately so a wrong-shaped pre-session claim cannot
+    # become an authorization grant.
+    assert not identity_has_tag({"tags": ("finance",)}, "finance")
