@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Normalize Flask and FastAPI tag claims through one fail-closed helper. Only
+  native lists and JSON-encoded lists can grant a tag; malformed values and
+  wrong-shaped claims deny access.
+- Add representative, package-only compatibility CI for Flask, FastAPI,
+  intentionally open apps, file processing, and identity contracts.
+
 All notable changes to `aj-shared` are documented here. Review this file
 before updating a consumer's shared-source reference.
 

@@ -52,6 +52,8 @@ from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 from flask import request, redirect, g, session, abort, jsonify
 
+from .identity import DEFAULT_SESSION_TTL_SECONDS, identity_has_tag
+
 logger = logging.getLogger(__name__)
 
 _HQ_BASE = os.environ.get('AJ_HQ_BASE', 'https://aj-hq.up.railway.app')
@@ -62,7 +64,7 @@ _CACHED_AT_KEY = '_aj_user_cached_at'
 # How long a cached session is trusted before re-checking with HQ. See
 # _get_or_validate_user() docstring for why a TTL exists instead of trying to
 # detect sign-out directly.
-_SESSION_TTL_SECONDS = 20 * 60  # 20 minutes
+_SESSION_TTL_SECONDS = DEFAULT_SESSION_TTL_SECONDS
 
 # Role hierarchy — higher index = more permissive.
 _ROLE_LEVELS = {'staff': 0, 'leadership': 1, 'admin': 2}
@@ -355,16 +357,8 @@ def has_tag(tag):
     stackable and travel with the user dict from /auth/validate — this
     module doesn't hardcode a tag vocabulary, HQ owns that.
     """
-    import json
     user = _get_or_validate_user()
-    if not user:
-        return False
-    raw = user.get('tags') or '[]'
-    try:
-        tags = json.loads(raw) if isinstance(raw, str) else (raw or [])
-    except (ValueError, TypeError):
-        tags = []
-    return tag in tags
+    return identity_has_tag(user, tag)
 
 
 def _url_without_cross_app_token(url):
