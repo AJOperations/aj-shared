@@ -33,3 +33,13 @@ __all__ = [
     'CORE_API_PREFIX',
     'CORE_SERVICE_SCOPES',
 ]
+
+from .status import (
+    RequestOutcome, DataQualifier, StatusPayload, StatusValidationError,
+    REQUEST_OUTCOMES, DATA_QUALIFIERS, build_status, validate_status,
+)
+
+__all__ += [
+    'RequestOutcome', 'DataQualifier', 'StatusPayload', 'StatusValidationError',
+    'REQUEST_OUTCOMES', 'DATA_QUALIFIERS', 'build_status', 'validate_status',
+]
