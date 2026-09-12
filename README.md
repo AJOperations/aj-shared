@@ -8,6 +8,7 @@ Shared authentication, HQ proxy, and contract-versioning package for AJ internal
 - The standard Flask HQ proxy and `/api/contract` route
 - Optional FastAPI authentication and proxy support through `aj-shared[fastapi]`
 - A framework-neutral `HQClient`
+- Additive request-status builders and validation (unreleased): [wire contract and exports](docs/STATUS-CONTRACT.md)
 
 See [`CHANGELOG.md`](CHANGELOG.md) before changing a consumer. Consumer upgrades are explicit; a package change does not update or deploy an application by itself.
 

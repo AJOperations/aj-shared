@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add strict, framework-independent request-status types, builder and validator for AJ UI.
+  Supports combined stale/partial/cached qualifiers and explicit retryability without
+  changing existing endpoint responses. See [the contract](docs/STATUS-CONTRACT.md).
+
 ## [2.0.0] — 2026-09-11
 
 - Normalize Flask and FastAPI tag claims through one fail-closed helper. Only
