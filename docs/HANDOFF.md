@@ -1,51 +1,37 @@
 # Current handoff
 
 Last verified: 2026-09-12
-Branch: `codex/aj-ui-status-contract`
-Base: freshly fetched `origin/main` at `885b8d7` (v2.0.0 release line).
+Release line: `v2.1.0`
 
-## Active objective and authority
+## Objective and authority
 
-Christine approved AJ UI Phase 3 and authorized this bounded aj-shared status
-contract, tests, technical documentation, scoped commit/push and review PR.
-Stop at review: no merge, tag, release, deployment or consumer migration.
-Platform shared-package work; additive public functionality, preserving existing
-behavior. Synthetic tests only; no live data, service or credential changes.
+Christine approved PR 8 for merge and delegated the release adjustment on
+2026-09-12. Use a new immutable v2.1.0 tag for the additive status contract;
+retain v2.0.0 unchanged. Christine confirms no app consumes v2.0.0.
+Consumer migration, AJ UI implementation and deployment remain separate.
 
-## Current verified state
+## Contract and verification
 
-- Current remote main was inspected: no compatible exported status helpers exist.
-- This branch adds `aj_shared.status` and root exports. Exact API, JSON examples,
-  metadata requirements and rejection behavior: [STATUS-CONTRACT.md](STATUS-CONTRACT.md).
-- Attachment recommendations were reconciled in [NEXT-UPDATE-REVIEW.md](NEXT-UPDATE-REVIEW.md).
-  Compatibility CI already landed in PR 7; artifact integrity and support-policy
-  recommendations remain separate work, not delivered capability.
-- Local Python 3.14: 296 tests passed; all five compatibility groups passed.
-  Only two upstream FastAPI/Starlette deprecation warnings remain.
-- Source distribution and wheel build passed. Build artifacts are temporary
-  verification output, not a v2.0.0 release replacement. Package version remains
-  2.0.0; this additive change is a minor candidate for a later approved release.
-- `git diff --check` passed. Existing endpoints, auth, proxies and contract version
-  1.0.0 remain unchanged. AJ UI and consumer repositories were not modified.
-- Commit/push/PR and hosted CI evidence: see this branch's Git/PR record.
-  Nothing from this branch is merged, released, adopted or deployed.
+- `aj_shared.status` adds strict request outcomes, combined qualifiers and
+  separate retryability. Root exports and JSON examples are documented in
+  [STATUS-CONTRACT.md](STATUS-CONTRACT.md).
+- 296 local tests and all five compatibility groups passed on Python 3.14.
+  PR 8 checks passed on Python 3.9 and 3.14 before release metadata adjustment;
+  the updated head must pass again before merge and tag.
+- Version-adjusted local suite: 296 passed; all five compatibility groups passed.
+  The 2.1.0 source distribution and wheel built; wheel metadata, source and
+  exported helper were verified. Two upstream deprecation warnings remain.
+- Existing endpoint responses, auth and proxy contract 1.0.0 stay unchanged.
+- Exact merge/tag and final CI evidence live in PR 8 and the Git release record.
+  A version in source does not establish that its tag has been published.
 
-## Review gate
+## Attachment and preserved follow-ups
 
-Review the strict wire choices: required three axes; `missing` descriptions for
-partial data; known-offset timestamp for stale data; integer seconds for retry
-hints; invalid input raises without fallback. The source dependency is implemented
-for review. AJ UI Phase 4 can use the documented model after contract review;
-installable consumer adoption needs merge, an approved immutable release, and
-separate consumer approval. Do not pin consumers to this branch or `main`.
+[NEXT-UPDATE-REVIEW.md](NEXT-UPDATE-REVIEW.md) reconciles the attachment.
+Compatibility CI already landed in PR 7. Artifact-integrity and support-policy
+recommendations remain follow-ups, not delivered capability.
 
-## Preserved separate workstreams
-
-- v2.0.0 already includes the Core Job reads, fail-closed tag normalization and
-  package compatibility CI. No consumer adoption is asserted by that release.
-- The provider-neutral EasyAuth/Entra adapter follows HQ's Azure pilot and verified
-  real injected claims; issuer-specific logic does not belong here.
-- ON-040 artifact/build identity, Azure hosting, Key Vault and deployment remain
-  separate. Do not change HQ legacy Job routes or introduce vendor/Sage workflows.
-
-> Replace this handoff with the current checkpoint when work transfers; do not append a history.
+The EasyAuth/Entra adapter follows HQ's Azure pilot and verified real claims.
+ON-040, Azure hosting, Key Vault, consumer adoption and deployment remain separate.
+No AJ UI files or consumer repositories were changed. Future consumers should
+adopt an approved immutable tag, never this review branch or floating main.

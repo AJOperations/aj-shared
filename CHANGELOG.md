@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [2.1.0] — 2026-09-12
 
 - Add strict, framework-independent request-status types, builder and validator for AJ UI.
   Supports combined stale/partial/cached qualifiers and explicit retryability without

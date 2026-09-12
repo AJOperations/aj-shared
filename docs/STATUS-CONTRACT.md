@@ -1,12 +1,11 @@
 # Request status contract
 
-Status: proposed additive API for review; unreleased. Owner: Christine Thoren.
+Status: approved for v2.1.0. Owner: Christine Thoren.
 Verified: 2026-09-12. Review when the API or approved AJ UI vocabulary changes.
 
-AJ UI Phase 4 can implement against this wire specification at source/review
-level. Production adoption still needs review, merge, an approved immutable
-package release and separately approved consumer changes. Existing v2.0.0 does
-not contain these helpers. Package version and proxy contract version are unchanged.
+AJ UI Phase 4 can implement against this wire specification. These helpers are
+introduced in v2.1.0; v2.0.0 does not contain them. Consumer adoption remains
+separately approved. The proxy contract version stays 1.0.0.
 
 ## Exact Python exports
 

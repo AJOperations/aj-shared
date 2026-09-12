@@ -3,8 +3,8 @@ import sys
 from importlib.metadata import version
 
 
-def test_package_version_is_2_0_0():
-    assert version("aj-shared") == "2.0.0"
+def test_package_version_is_2_1_0():
+    assert version("aj-shared") == "2.1.0"
 
 
 def test_base_package_import_does_not_import_fastapi():
