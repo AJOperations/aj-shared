@@ -38,6 +38,15 @@ with Core coordination first and independent UI release; retain immutable 2.1.1
 plus the prior app artifact for rollback. New imports require rolling back app
 code with the package. No fleet or Home completion is claimed.
 
+## Packaging closeout — 2026-09-13
+
+Implementation commit `e7fdf37`. The clean candidate wheel and source archive
+built successfully. Installing the wheel into a separate target confirmed
+version 2.2.0 and all four packaged synthetic items. A deliberately incompatible
+schema-major expectation failed as required. All six compatibility groups passed.
+The installed released 2.1.1 baseline passed its 307 tests for rollback coverage.
+No tag, package release, consumer or provider was changed.
+
 ---
 ## Historical foundation handoff (superseded source/publication status)
 
