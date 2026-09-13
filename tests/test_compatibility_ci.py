@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_compatibility_runner_covers_every_required_contract_group():
     assert set(CONTRACT_GROUPS) == {
-        "flask", "fastapi", "open-app", "file-processing", "identity",
+        "flask", "fastapi", "open-app", "file-processing", "identity", "suite",
     }
     assert all(CONTRACT_GROUPS[group] for group in CONTRACT_GROUPS)
 

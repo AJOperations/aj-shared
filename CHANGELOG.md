@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2.0 — 2026-09-13
+
+Additive suite v1 attention/provenance validators, synthetic installed-artifact fixtures, safe diagnostic and audit/job helpers, and opt-in total-budget transport. Existing default HQClient/auth/proxy/status contracts remain compatible. No consumer adoption or live source integration.
+
+
 ## [2.1.1] — 2026-09-13
 
 - Use exact public endpoints and explicit trailing-slash directory prefixes

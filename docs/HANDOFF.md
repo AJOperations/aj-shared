@@ -1,3 +1,59 @@
+<!-- Current approval supersedes the historical local-only execution boundary below. -->
+
+**Publication authorization — 2026-09-13:** Christine approved the recommended Core-first source publication and independent Shared/UI foundation releases. Home releases and all real-consumer adoption remain deferred. Preserve Core's untagged 1.0.0-rc.1 candidate; publish Shared 2.2.0 and UI 0.2.0 only after their release checks pass. Main publication can trigger existing automatic hosting builds; no manual deployment or infrastructure/credential change is included.
+
+# Current suite-adoption handoff — 2026-09-13
+
+**Status:** Local 2.2.0 candidate; no publication or adoption
+**Owner:** Christine Thoren
+**Review when:** Candidate changes or a consumer/release is authorized
+
+Fresh baseline: main `39477dd`, published immutable `v2.1.1`. The foundation fixes
+were reused, not rewritten; no open Shared PR existed at verification. Scope is
+Platform / additive functionally material foundations under Christine's explicit
+Core/Shared/UI local implementation approval. Home/domain apps remain separate.
+
+[Suite contract and adoption guide](SUITE-ADOPTION.md) documents schema-1 attention/
+provenance, bounded dependency transport, safe diagnostics/runtime identity,
+transactional audit and job lifecycle helpers. Four package-owned synthetic signal
+types and a deliberately incompatible contract gate are included in the wheel.
+Shared remains Python-only. Default legacy HQClient behavior stays compatible;
+new total budgets are explicitly adopted per app/dependency. No live source,
+recipient identity mechanism, caching or domain signal production is invented.
+
+Verification: **328 tests passed** on Python 3.14 (two existing upstream
+Starlette/anyio deprecation warnings). All six compatibility groups pass, including
+Flask, FastAPI, open-app, file processing, identity and suite. The source archive
+and wheel build. Installed-wheel synthetic adoption, rollback and packaging
+follow-up are recorded below after final packaging. Prior released 2.1.1 installed
+artifact passed all **307 baseline tests**; no package/source tag was moved.
+
+Use `/private/tmp/aj-suite-venv/bin/python -m pytest -q`,
+`python scripts/compatibility_ci.py`, `python -m build --no-isolation` and, from a
+clean installed wheel, `python -m aj_shared.adoption`. Tests cover budget/capacity,
+timeout, malformed/oversize, 401/403/429, write ambiguity/no retry, correlation,
+redaction, audience gates, audit rollback, job interruption/freshness and schema
+mismatch. Remote Python 3.9 CI remains unrun for these local commits.
+
+Remaining: real recipient/source authorization and caches, Home composition,
+measured app budgets, approved audit/job/diagnostic storage/readers/retention and
+real-consumer/hosting validation. Publish only after review and separate approval,
+with Core coordination first and independent UI release; retain immutable 2.1.1
+plus the prior app artifact for rollback. New imports require rolling back app
+code with the package. No fleet or Home completion is claimed.
+
+## Packaging closeout — 2026-09-13
+
+Implementation commit `e7fdf37`. The clean candidate wheel and source archive
+built successfully. Installing the wheel into a separate target confirmed
+version 2.2.0 and all four packaged synthetic items. A deliberately incompatible
+schema-major expectation failed as required. All six compatibility groups passed.
+The installed released 2.1.1 baseline passed its 307 tests for rollback coverage.
+No tag, package release, consumer or provider was changed.
+
+---
+## Historical foundation handoff (superseded source/publication status)
+
 # Current handoff
 
 ## Release follow-up — 2026-09-13

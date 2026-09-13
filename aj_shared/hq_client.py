@@ -55,6 +55,7 @@ class HQClient:
         session: Any = None,
         service_id: Optional[str] = None,
         service_key: Optional[str] = None,
+        transport_policy: Any = None,
     ) -> None:
         if not base_url.startswith(("http://", "https://")):
             raise ValueError("HQ base URL must be absolute HTTP(S)")
@@ -71,6 +72,8 @@ class HQClient:
         # PLATFORM_SECRET at all.
         self.service_id = service_id
         self.service_key = service_key
+        from .transport import BoundedTransport
+        self.transport = BoundedTransport(transport_policy) if transport_policy is not None else None
 
     @staticmethod
     def _failure(*, exc: Optional[Exception] = None, detail: Optional[str] = None) -> HQResponse:
@@ -98,6 +101,9 @@ class HQClient:
         if self.service_id and self.service_key:
             headers["X-AJ-Service"] = self.service_id
             headers["X-AJ-Service-Key"] = self.service_key
+        if self.transport is not None:
+            result = self.transport.request(self.session, method, f"{self.base_url}{path}", headers=headers, **kwargs)
+            return HQResponse(result.status_code, result.body)
         response = None
         try:
             response = self.session.request(
