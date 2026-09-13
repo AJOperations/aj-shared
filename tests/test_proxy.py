@@ -1,3 +1,4 @@
+import time
 import io
 import unittest
 from unittest import mock
@@ -26,7 +27,7 @@ class ProxySecurityTests(unittest.TestCase):
     def make_client(self):
         app = Flask(__name__)
         app.secret_key = "test-secret"
-        app.config.update(TESTING=True)
+        app.config.update(TESTING=True, PLATFORM_SECRET="synthetic-platform")
         aj_proxy.register_proxy(
             app,
             app_name="Test App",
@@ -41,7 +42,7 @@ class ProxySecurityTests(unittest.TestCase):
                 "role": "admin",
                 "tags": "[]",
             }
-            session["_aj_user_cached_at"] = 9999999999
+            session["_aj_user_cached_at"] = time.time()
         return client
 
     def test_logout_requires_exact_csrf_proof_and_clears_session(self):

@@ -17,18 +17,18 @@ import json
 import logging
 import uuid
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, g, redirect
 from flask_cors import CORS
 
 from .aj_auth import get_current_user, require_auth, csrf_protect
+from .flask_config import configure_core, core_config, core_client
+from .hq_client import MAX_JSON_RESPONSE_BYTES as _MAX_JSON_RESPONSE_BYTES
 from .contract import register_contract_route
 
 logger = logging.getLogger(__name__)
 
-_HQ_BASE = os.environ.get('AJ_HQ_BASE', 'https://aj-hq.up.railway.app')
 _HQ_TIMEOUT = 5
 _HQ_UPLOAD_TIMEOUT = 15  # multipart forwarding (feedback screenshots, dropbox uploads) needs more headroom
-_MAX_JSON_RESPONSE_BYTES = 2 * 1024 * 1024
 _FEEDBACK_MAX_BYTES = 5 * 1024 * 1024
 
 
@@ -138,68 +138,23 @@ def _proxy_failure(operation, *, exc=None, detail=None):
     }, 502
 
 
-def _read_json_response(response, operation):
-    """Read a bounded, non-redirect HQ response and decode JSON safely."""
-    if 300 <= response.status_code < 400:
-        response.close()
-        return _proxy_failure(operation, detail='unexpected_redirect')
-
-    declared_length = response.headers.get('Content-Length')
-    if declared_length:
-        try:
-            if int(declared_length) > _MAX_JSON_RESPONSE_BYTES:
-                response.close()
-                return _proxy_failure(operation, detail='response_too_large')
-        except (TypeError, ValueError):
-            response.close()
-            return _proxy_failure(operation, detail='invalid_content_length')
-
-    body = bytearray()
-    try:
-        for chunk in response.iter_content(chunk_size=65536):
-            if not chunk:
-                continue
-            body.extend(chunk)
-            if len(body) > _MAX_JSON_RESPONSE_BYTES:
-                return _proxy_failure(operation, detail='response_too_large')
-    except Exception as exc:
-        return _proxy_failure(operation, exc=exc)
-    finally:
-        response.close()
-
-    if response.status_code == 204 and not body:
-        return {}, 204
-    try:
-        return json.loads(body.decode('utf-8')), response.status_code
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        return _proxy_failure(operation, exc=exc)
-
-
 def _request_json(method, url, operation, **kwargs):
-    """Send one bounded HQ request with redirects disabled."""
+    """Compatibility wrapper over the same app-scoped auth/data transport."""
+    base = core_config().base_url
+    if not url.startswith(base + '/'):
+        return _proxy_failure(operation, detail='unexpected_destination')
     try:
-        import requests as req
-        response = req.request(
-            method,
-            url,
-            allow_redirects=False,
-            stream=True,
-            **kwargs,
-        )
-        return _read_json_response(response, operation)
-    except Exception as exc:
-        return _proxy_failure(operation, exc=exc)
+        result = core_client()._request(method, url[len(base):], **kwargs)
+    except ValueError:
+        return _proxy_failure(operation, detail='missing_configuration')
+    if result.status_code == 502:
+        return {'error': 'HQ is temporarily unavailable. It is safe to retry.',
+                'reference_id': result.body['reference_id']}, 502
+    return result.body, result.status_code
 
 
 def _hq_get(path):
-    secret = os.environ.get('PLATFORM_SECRET', '')
-    return _request_json(
-        'GET',
-        f'{_HQ_BASE}{path}',
-        f'hq_get:{path.split("?", 1)[0]}',
-        headers={'X-AJ-Key': secret},
-        timeout=_HQ_TIMEOUT,
-    )
+    return _request_json('GET', core_config().base_url + path, 'hq_get')
 
 
 def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_cors_now=True,
@@ -230,9 +185,7 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
         retrofit needed — an open app can now just pass open_app=True instead
         of rediscovering that trick.
     """
-    global _HQ_BASE
-    if hq_base:
-        _HQ_BASE = hq_base
+    configure_core(app, hq_base)
 
     if configure_cors_now:
         configure_cors(app, extra_origins=extra_origins)
@@ -283,26 +236,17 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
             # rather than proxying to HQ, so ajInitShell()/aj-utils.js render
             # an empty user zone instead of crashing or redirecting.
             return jsonify({'valid': False}), 200
-        cached = session.get('_aj_user')
-        if cached:
-            return jsonify({'valid': True, 'user': cached}), 200
-        secret = os.environ.get('PLATFORM_SECRET', '')
-        token = request.args.get('token', '')
-        data, status = _request_json(
-            'GET',
-            f'{_HQ_BASE}/auth/validate',
-            'auth_validate',
-            headers={'X-AJ-Key': secret},
-            params={'token': token} if token else {},
-            timeout=_HQ_TIMEOUT,
-        )
-        if status == 502:
-            data = {
-                'valid': False,
-                'error': data['error'],
-                'reference_id': data['reference_id'],
-            }
-        return jsonify(data), status
+        user = get_current_user()
+        if user:
+            return jsonify({'valid': True, 'user': user}), 200
+        failure = getattr(g, '_aj_auth_failure', None)
+        if failure:
+            return jsonify({'valid': False, **failure.body}), failure.status_code
+        return jsonify({'valid': False}), 401
+
+    @_route('/auth/account')
+    def proxy_account():
+        return redirect(core_config().base_url + '/account/password')
 
     @_route('/auth/logout', methods=['POST'])
     @csrf_protect
@@ -392,10 +336,10 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
     @_guard()
     @csrf_protect
     def proxy_user_change_password():
-        secret = os.environ.get('PLATFORM_SECRET', '')
+        secret = core_config().platform_secret
         data, status = _request_json(
             'POST',
-            f'{_HQ_BASE}/api/users/me/password',
+            f'{core_config().base_url}/api/users/me/password',
             'change_password',
             headers={
                 'X-AJ-Key': secret,
@@ -415,7 +359,7 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
         screenshot) to HQ. Session-gated (2026-07-09) — the feedback widget
         only ever renders for a logged-in user anyway, so this just stops
         the endpoint being spammable by an anonymous visitor."""
-        secret = os.environ.get('PLATFORM_SECRET', '')
+        secret = core_config().platform_secret
         files = None
         if 'screenshot' in request.files and request.files['screenshot'].filename:
             f = request.files['screenshot']
@@ -428,7 +372,7 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
             files = {'screenshot': (f.filename, f.stream, f.mimetype)}
         data, status = _request_json(
             'POST',
-            f'{_HQ_BASE}/api/feedback',
+            f'{core_config().base_url}/api/feedback',
             'feedback',
             headers={'X-AJ-Key': secret},
             data=request.form.to_dict(),
@@ -440,11 +384,11 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
     @_route('/api/dropbox/list')
     @_guard()
     def proxy_dropbox_list():
-        secret = os.environ.get('PLATFORM_SECRET', '')
+        secret = core_config().platform_secret
         qs = request.query_string.decode()
         data, status = _request_json(
             'GET',
-            f'{_HQ_BASE}/api/dropbox/list{"?" + qs if qs else ""}',
+            f'{core_config().base_url}/api/dropbox/list{"?" + qs if qs else ""}',
             'dropbox_list',
             headers={'X-AJ-Key': secret},
             timeout=_HQ_TIMEOUT,
@@ -455,12 +399,12 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
     @_guard()
     @csrf_protect
     def proxy_dropbox_upload():
-        secret = os.environ.get('PLATFORM_SECRET', '')
+        secret = core_config().platform_secret
         f = request.files.get('file')
         files = {'file': (f.filename, f.stream, f.mimetype)} if f else None
         data, status = _request_json(
             'POST',
-            f'{_HQ_BASE}/api/dropbox/upload',
+            f'{core_config().base_url}/api/dropbox/upload',
             'dropbox_upload',
             headers={'X-AJ-Key': secret},
             data=request.form.to_dict(),
@@ -473,10 +417,10 @@ def register_proxy(app, app_name, hq_base=None, extra_origins=None, configure_co
     @_guard()
     @csrf_protect
     def proxy_email_send():
-        secret = os.environ.get('PLATFORM_SECRET', '')
+        secret = core_config().platform_secret
         data, status = _request_json(
             'POST',
-            f'{_HQ_BASE}/api/email/send',
+            f'{core_config().base_url}/api/email/send',
             'email_send',
             headers={'X-AJ-Key': secret, 'Content-Type': 'application/json'},
             json=request.get_json(force=True, silent=True) or {},

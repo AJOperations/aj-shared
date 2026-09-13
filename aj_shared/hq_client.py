@@ -104,7 +104,7 @@ class HQClient:
                 method,
                 f"{self.base_url}{path}",
                 headers=headers,
-                timeout=self.timeout,
+                timeout=kwargs.pop("timeout", self.timeout),
                 allow_redirects=False,
                 stream=True,
                 **kwargs,

@@ -52,3 +52,19 @@ AJ approval, consumer sequencing, and evidence requirements live in Dropbox at `
 - Keep the shared route contract backward compatible unless a coordinated breaking change is approved
 - Confirm exact consumer origins; do not guess URLs or broaden CORS patterns
 - Do not treat a package merge or release as consumer deployment authority
+
+## Local foundation fixes (unreleased)
+
+See [docs/HANDOFF.md](docs/HANDOFF.md) for the accepted remediation and exact
+local evidence. `register_proxy(app, ..., hq_base=...)` configures both auth and
+proxy transport for that Flask app. Alternatively set `AJ_HQ_BASE` and
+`PLATFORM_SECRET` on `app.config` before registration; environment variables
+remain the fallback. Configure each app before serving requests.
+`AJ_SESSION_TTL_SECONDS` optionally selects its cache lifetime (default 1,200).
+`require_auth_by_default` allows exact paths, with subtrees only for explicit
+trailing-slash entries. JSON decorators and `/api/` failures return JSON 401;
+auth dependency failures remain 502. Existing public-app proxy support remains.
+
+Link to `/auth/account` for Core-owned password changes across different
+origins. The legacy password proxy cannot obtain a Core-domain cookie from a
+normal cross-origin consumer. No consumer application was changed here.

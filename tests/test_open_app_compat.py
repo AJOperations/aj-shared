@@ -20,7 +20,7 @@ class StubResponse:
 def make_open_client():
     app = Flask(__name__)
     app.secret_key = "test-secret"
-    app.config.update(TESTING=True)
+    app.config.update(TESTING=True, PLATFORM_SECRET="synthetic-platform")
     register_proxy(
         app,
         app_name="Open Tool",

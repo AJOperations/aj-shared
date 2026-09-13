@@ -118,7 +118,7 @@ def test_auth_validate_uses_cache_then_forwards_token_without_cache():
     forwarded = client.get("/auth/validate?token=bad")
     assert forwarded.status_code == 401
     assert forwarded.json() == {"valid": False}
-    assert fake.calls == [("get", "/auth/validate", {"token": "bad"})]
+    assert fake.calls == [("validate", "bad")]
 
 
 def test_logout_requires_csrf_and_clears_local_session():

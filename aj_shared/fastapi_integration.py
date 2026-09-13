@@ -8,11 +8,12 @@ from urllib.parse import urlencode, urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.concurrency import run_in_threadpool
 from starlette.responses import JSONResponse, RedirectResponse, Response
 
 from .contract import CONTRACT_VERSION, get_aj_shared_version
 from .hq_client import HQClient
-from .identity import DEFAULT_SESSION_TTL_SECONDS, identity_has_tag
+from .identity import DEFAULT_SESSION_TTL_SECONDS, identity_has_tag, path_is_public, session_is_fresh
 
 _FEEDBACK_MAX_BYTES = 5 * 1024 * 1024
 
@@ -28,6 +29,7 @@ class FastAPIHQ:
         "/api/apps",
         "/auth/validate",
         "/auth/logout",
+        "/auth/account",
         "/api/contract",
     )
 
@@ -59,6 +61,8 @@ class FastAPIHQ:
         self.session_ttl_seconds = session_ttl_seconds
         self.production = production
         self.client = client or HQClient(self.hq_base, platform_secret)
+        if isinstance(self.client, HQClient) and self.client.base_url != self.hq_base:
+            raise ValueError('Auth and proxy Core destinations must match')
         self.public_paths: tuple[str, ...] = self._DEFAULT_PUBLIC_PATHS
 
     @staticmethod
@@ -80,23 +84,28 @@ class FastAPIHQ:
         ) -> Response:
             token = request.query_params.get("token")
             if token is not None and request.url.path != "/auth/validate":
-                user = self.client.validate(token)
+                user = await self._validate_token(request, token)
+                failure = getattr(request.state, "aj_auth_failure", None)
+                if failure:
+                    return self._json_response(failure)
                 self.clear_session(request)
                 clean_url = self._request_url(request, strip_token=True)
                 if user is not None:
                     request.session["_aj_user"] = user
                     request.session["_aj_user_cached_at"] = time.time()
                     request.session["_aj_csrf"] = secrets.token_urlsafe(32)
-                    if request.method in {"GET", "HEAD"}:
+                    if request.method in {"GET", "HEAD"} and not request.url.path.startswith("/api/"):
                         return RedirectResponse(clean_url, status_code=307)
                     return await call_next(request)
-                if request.method in {"GET", "HEAD"}:
+                if request.method in {"GET", "HEAD"} and not request.url.path.startswith("/api/"):
                     return self._login_redirect(clean_url)
                 return JSONResponse({"error": "Unauthorized"}, status_code=401)
 
             if self._is_public(request.url.path):
                 return await call_next(request)
             if self._session_user(request) is None:
+                if request.url.path.startswith('/api/') or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('accept', ''):
+                    return JSONResponse({'error': 'Unauthorized'}, status_code=401)
                 return self._login_redirect(self._request_url(request))
             return await call_next(request)
 
@@ -111,14 +120,17 @@ class FastAPIHQ:
             https_only=self.production,
         )
 
+    async def _validate_token(self, request, token):
+        if isinstance(self.client, HQClient):
+            result = await run_in_threadpool(self.client.get_json, '/auth/validate', {'token': token})
+            if result.status_code >= 500:
+                request.state.aj_auth_failure = result
+            user = result.body.get('user') if result.status_code == 200 and result.body.get('valid') else None
+            return user if isinstance(user, dict) else None
+        return await run_in_threadpool(self.client.validate, token)
+
     def _is_public(self, path: str) -> bool:
-        for public_path in self.public_paths:
-            if public_path.endswith("/"):
-                if path.startswith(public_path):
-                    return True
-            elif path == public_path:
-                return True
-        return False
+        return path_is_public(path, self.public_paths)
 
     def _request_url(self, request: Request, *, strip_token: bool = False) -> str:
         query_items = list(request.query_params.multi_items())
@@ -138,10 +150,7 @@ class FastAPIHQ:
     def _session_user(self, request: Request) -> Optional[dict[str, Any]]:
         user = request.session.get("_aj_user")
         cached_at = request.session.get("_aj_user_cached_at")
-        try:
-            fresh = time.time() - float(cached_at) < self.session_ttl_seconds
-        except (TypeError, ValueError):
-            fresh = False
+        fresh = session_is_fresh(cached_at, self.session_ttl_seconds, time.time())
         if isinstance(user, dict) and fresh:
             return user
         self.clear_session(request)
@@ -259,10 +268,21 @@ class FastAPIHQ:
             if cached is not None:
                 return JSONResponse({"valid": True, "user": cached})
             token = request.query_params.get("token")
-            params = {"token": token} if token else {}
-            return self._json_response(
-                self.client.get_json("/auth/validate", params)
-            )
+            if token:
+                user = await self._validate_token(request, token)
+                if user:
+                    request.session['_aj_user'] = user
+                    request.session['_aj_user_cached_at'] = time.time()
+                    request.session['_aj_csrf'] = secrets.token_urlsafe(32)
+                    return JSONResponse({'valid': True, 'user': user})
+                failure = getattr(request.state, 'aj_auth_failure', None)
+                if failure:
+                    return JSONResponse({'valid': False, **failure.body}, status_code=failure.status_code)
+            return JSONResponse({'valid': False}, status_code=401)
+
+        @router.get('/auth/account')
+        async def proxy_account():
+            return RedirectResponse(self.hq_base + '/account/password', status_code=307)
 
         @router.post(
             "/auth/logout",

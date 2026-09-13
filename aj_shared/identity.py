@@ -29,3 +29,15 @@ def identity_has_tag(user: Mapping[str, Any] | None, tag: str) -> bool:
         except (TypeError, json.JSONDecodeError):
             return False
     return isinstance(tags, list) and tag in tags
+
+
+def path_is_public(path, public_paths):
+    """Only a trailing slash explicitly grants a directory subtree."""
+    return any(path.startswith(p) if p.endswith('/') else path == p for p in public_paths)
+
+
+def session_is_fresh(cached_at, ttl, now):
+    try:
+        return 0 <= now - float(cached_at) < ttl
+    except (TypeError, ValueError):
+        return False
