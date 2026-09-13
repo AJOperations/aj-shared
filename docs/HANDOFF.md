@@ -1,5 +1,10 @@
 # Current handoff
 
+## Release follow-up — 2026-09-13
+
+Christine authorized the v2.1.1 patch release, source merge, immutable tag and GitHub release assets. This follows the verified Core → Shared → UI remediation merges. No live consumer testing or adoption is included: the packages are foundations for future apps. Core's coordination reference is `60f30b6`; keep existing v2.1.0 immutable. Release CI and synthetic package installation are the evidence gates. The local-remediation record below is historical; its publication exclusions have been superseded for this release only.
+
+
 **Status:** Accepted foundation fixes committed locally; unpublished
 **Owner:** Christine Thoren
 **Last verified:** 2026-09-13

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [2.1.1] — 2026-09-13
 
 - Use exact public endpoints and explicit trailing-slash directory prefixes
 - Align TTL-aware validation, JSON authorization failures and dependency errors

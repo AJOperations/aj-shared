@@ -1,6 +1,6 @@
 # aj-shared
 
-Shared authentication, HQ proxy, and contract-versioning package for AJ internal applications. The current package version is `2.1.0`; the shared route contract remains `1.0.0`.
+Shared authentication, HQ proxy, and contract-versioning package for AJ internal applications. The current package version is `2.1.1`; the shared route contract remains `1.0.0`.
 
 ## What it provides
 
@@ -53,7 +53,7 @@ AJ approval, consumer sequencing, and evidence requirements live in Dropbox at `
 - Confirm exact consumer origins; do not guess URLs or broaden CORS patterns
 - Do not treat a package merge or release as consumer deployment authority
 
-## Local foundation fixes (unreleased)
+## Foundation fixes — v2.1.1
 
 See [docs/HANDOFF.md](docs/HANDOFF.md) for the accepted remediation and exact
 local evidence. `register_proxy(app, ..., hq_base=...)` configures both auth and
