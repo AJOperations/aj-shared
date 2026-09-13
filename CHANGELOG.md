@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Use exact public endpoints and explicit trailing-slash directory prefixes
+- Align TTL-aware validation, JSON authorization failures and dependency errors
+- Isolate Core destination/credentials per Flask app and reuse HQClient transport
+- Add Core-owned account navigation and coordinated synthetic integration evidence
+- Preserve public proxies, existing cross-app login and fleet-wide data access
+
+
 ## [2.1.0] — 2026-09-12
 
 - Add strict, framework-independent request-status types, builder and validator for AJ UI.
