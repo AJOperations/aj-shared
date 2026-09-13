@@ -1,3 +1,46 @@
+# Current suite-adoption handoff — 2026-09-13
+
+**Status:** Local 2.2.0 candidate; no publication or adoption
+**Owner:** Christine Thoren
+**Review when:** Candidate changes or a consumer/release is authorized
+
+Fresh baseline: main `39477dd`, published immutable `v2.1.1`. The foundation fixes
+were reused, not rewritten; no open Shared PR existed at verification. Scope is
+Platform / additive functionally material foundations under Christine's explicit
+Core/Shared/UI local implementation approval. Home/domain apps remain separate.
+
+[Suite contract and adoption guide](SUITE-ADOPTION.md) documents schema-1 attention/
+provenance, bounded dependency transport, safe diagnostics/runtime identity,
+transactional audit and job lifecycle helpers. Four package-owned synthetic signal
+types and a deliberately incompatible contract gate are included in the wheel.
+Shared remains Python-only. Default legacy HQClient behavior stays compatible;
+new total budgets are explicitly adopted per app/dependency. No live source,
+recipient identity mechanism, caching or domain signal production is invented.
+
+Verification: **328 tests passed** on Python 3.14 (two existing upstream
+Starlette/anyio deprecation warnings). All six compatibility groups pass, including
+Flask, FastAPI, open-app, file processing, identity and suite. The source archive
+and wheel build. Installed-wheel synthetic adoption, rollback and packaging
+follow-up are recorded below after final packaging. Prior released 2.1.1 installed
+artifact passed all **307 baseline tests**; no package/source tag was moved.
+
+Use `/private/tmp/aj-suite-venv/bin/python -m pytest -q`,
+`python scripts/compatibility_ci.py`, `python -m build --no-isolation` and, from a
+clean installed wheel, `python -m aj_shared.adoption`. Tests cover budget/capacity,
+timeout, malformed/oversize, 401/403/429, write ambiguity/no retry, correlation,
+redaction, audience gates, audit rollback, job interruption/freshness and schema
+mismatch. Remote Python 3.9 CI remains unrun for these local commits.
+
+Remaining: real recipient/source authorization and caches, Home composition,
+measured app budgets, approved audit/job/diagnostic storage/readers/retention and
+real-consumer/hosting validation. Publish only after review and separate approval,
+with Core coordination first and independent UI release; retain immutable 2.1.1
+plus the prior app artifact for rollback. New imports require rolling back app
+code with the package. No fleet or Home completion is claimed.
+
+---
+## Historical foundation handoff (superseded source/publication status)
+
 # Current handoff
 
 ## Release follow-up — 2026-09-13

@@ -4,7 +4,7 @@ from importlib.metadata import version
 
 
 def test_package_version_is_2_1_1():
-    assert version("aj-shared") == "2.1.1"
+    assert version("aj-shared") == "2.2.0"
 
 
 def test_base_package_import_does_not_import_fastapi():

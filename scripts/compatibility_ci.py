@@ -9,6 +9,7 @@ from collections.abc import Sequence
 
 
 CONTRACT_GROUPS: dict[str, tuple[str, ...]] = {
+    "suite": ("tests/test_suite_contracts.py", "tests/test_transport_budget.py"),
     "flask": ("tests/test_flask_compat.py", "tests/test_auth.py", "tests/test_proxy.py"),
     "fastapi": (
         "tests/test_package_metadata.py", "tests/test_fastapi_auth.py",

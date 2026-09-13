@@ -68,3 +68,7 @@ auth dependency failures remain 502. Existing public-app proxy support remains.
 Link to `/auth/account` for Core-owned password changes across different
 origins. The legacy password proxy cannot obtain a Core-domain cookie from a
 normal cross-origin consumer. No consumer application was changed here.
+
+## Suite foundations
+
+The additive attention, provenance, bounded dependency, diagnostic/runtime, audit and job helpers are documented in [docs/SUITE-ADOPTION.md](docs/SUITE-ADOPTION.md). These are Python package foundations; Home and live consumers adopt separately.

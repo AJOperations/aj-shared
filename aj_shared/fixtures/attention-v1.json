@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "status": {
+    "status": "ok",
+    "qualifiers": [],
+    "retryable": false
+  },
+  "provenance": {
+    "source_id": "synthetic",
+    "source_label": "Synthetic source",
+    "observed_at": "2026-03-08T07:30:00Z",
+    "fetched_at": "2026-03-08T08:30:00Z"
+  },
+  "complete": true,
+  "items": [
+    {
+      "signal_id": "signal-0",
+      "source_app_id": "synthetic",
+      "signal_type": "synthetic.action",
+      "kind": "action",
+      "source_record": {
+        "entity_type": "synthetic",
+        "id": "record-0"
+      },
+      "title": "Synthetic action",
+      "reason": "Package compatibility example",
+      "destination": "/records/0",
+      "state": "active",
+      "updated_at": "2026-03-07T12:00:00Z",
+      "revision": "1",
+      "dates": [
+        {
+          "name": "due",
+          "value": "2026-03-08",
+          "timezone": "America/Chicago"
+        }
+      ],
+      "action_label": "Review source"
+    },
+    {
+      "signal_id": "signal-1",
+      "source_app_id": "synthetic",
+      "signal_type": "synthetic.date",
+      "kind": "date",
+      "source_record": {
+        "entity_type": "synthetic",
+        "id": "record-1"
+      },
+      "title": "Synthetic date",
+      "reason": "Package compatibility example",
+      "destination": "/records/1",
+      "state": "active",
+      "updated_at": "2026-03-07T12:00:00Z",
+      "revision": "1",
+      "dates": [
+        {
+          "name": "due",
+          "value": "2026-03-08",
+          "timezone": "America/Chicago"
+        }
+      ]
+    },
+    {
+      "signal_id": "signal-2",
+      "source_app_id": "synthetic",
+      "signal_type": "synthetic.assignment",
+      "kind": "assignment",
+      "source_record": {
+        "entity_type": "synthetic",
+        "id": "record-2"
+      },
+      "title": "Synthetic assignment",
+      "reason": "Package compatibility example",
+      "destination": "/records/2",
+      "state": "active",
+      "updated_at": "2026-03-07T12:00:00Z",
+      "revision": "1",
+      "dates": [
+        {
+          "name": "due",
+          "value": "2026-03-08",
+          "timezone": "America/Chicago"
+        }
+      ]
+    },
+    {
+      "signal_id": "signal-3",
+      "source_app_id": "synthetic",
+      "signal_type": "synthetic.update",
+      "kind": "update",
+      "source_record": {
+        "entity_type": "synthetic",
+        "id": "record-3"
+      },
+      "title": "Synthetic update",
+      "reason": "Package compatibility example",
+      "destination": "/records/3",
+      "state": "active",
+      "updated_at": "2026-03-07T12:00:00Z",
+      "revision": "1",
+      "dates": [
+        {
+          "name": "due",
+          "value": "2026-03-08",
+          "timezone": "America/Chicago"
+        }
+      ]
+    }
+  ]
+}

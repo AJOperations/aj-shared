@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aj-shared"
-version = "2.1.1"
+version = "2.2.0"
 description = "Shared auth, HQ proxy, and contract-versioning package for AJ internal tools."
 requires-python = ">=3.9"
 dependencies = [
@@ -28,3 +28,6 @@ dev = [
 
 [tool.setuptools.packages.find]
 include = ["aj_shared*"]
+
+[tool.setuptools.package-data]
+aj_shared = ["fixtures/*.json"]
