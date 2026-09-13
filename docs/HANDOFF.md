@@ -1,3 +1,7 @@
+<!-- Current approval supersedes the historical local-only execution boundary below. -->
+
+**Publication authorization — 2026-09-13:** Christine approved the recommended Core-first source publication and independent Shared/UI foundation releases. Home releases and all real-consumer adoption remain deferred. Preserve Core's untagged 1.0.0-rc.1 candidate; publish Shared 2.2.0 and UI 0.2.0 only after their release checks pass. Main publication can trigger existing automatic hosting builds; no manual deployment or infrastructure/credential change is included.
+
 # Current suite-adoption handoff — 2026-09-13
 
 **Status:** Local 2.2.0 candidate; no publication or adoption
