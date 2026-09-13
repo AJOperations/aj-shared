@@ -50,14 +50,13 @@ import logging
 import functools
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
-from flask import request, redirect, g, session, abort, jsonify
+from flask import request, redirect, g, session, abort, jsonify, current_app
 
-from .identity import DEFAULT_SESSION_TTL_SECONDS, identity_has_tag
+from .identity import DEFAULT_SESSION_TTL_SECONDS, identity_has_tag, path_is_public, session_is_fresh
+from .flask_config import core_config, core_client, configure_core
 
 logger = logging.getLogger(__name__)
 
-_HQ_BASE = os.environ.get('AJ_HQ_BASE', 'https://aj-hq.up.railway.app')
-_HQ_TIMEOUT = 5
 _SESSION_KEY = '_aj_user'
 _CACHED_AT_KEY = '_aj_user_cached_at'
 
@@ -276,22 +275,29 @@ def _validate_with_hq(token=None):
     Call HQ /auth/validate server-side. Passes ?token= if provided (cross-app
     token from URL). Returns user dict or None.
     """
-    secret = _platform_secret()
     try:
-        import requests as req
-        params = {'token': token} if token else {}
-        r = req.get(
-            f'{_HQ_BASE}/auth/validate',
-            headers={'X-AJ-Key': secret},
-            params=params,
-            timeout=_HQ_TIMEOUT,
-        )
-        if r.status_code == 200:
-            data = r.json()
-            return data.get('user') if data.get('valid') else None
-    except Exception:
-        pass
+        result = core_client().get_json('/auth/validate', {'token': token} if token else {})
+    except ValueError:
+        from .hq_client import HQClient
+        result = HQClient._failure(detail='missing_configuration')
+    if result.status_code >= 500:
+        g._aj_auth_failure = result
+    if result.status_code == 200 and result.body.get('valid'):
+        user = result.body.get('user')
+        return user if isinstance(user, dict) else None
     return None
+
+
+def _auth_failure(json_route=False):
+    failure = getattr(g, '_aj_auth_failure', None)
+    if failure:
+        if json_route:
+            return jsonify(failure.body), failure.status_code
+        return ('Sign-in is temporarily unavailable. Your work has not been changed. Please try again.', 502)
+    if json_route:
+        return jsonify({'error': 'Unauthorized'}), 401
+    next_url = _url_without_cross_app_token(request.url)
+    return redirect(f'{core_config().base_url}/login?next={quote(next_url, safe="")}')
 
 
 def _get_or_validate_user():
@@ -321,16 +327,12 @@ def _get_or_validate_user():
 
     cached = session.get(_SESSION_KEY)
     cached_at = session.get(_CACHED_AT_KEY)
-    if cached and cached_at is not None:
-        try:
-            age = time.time() - float(cached_at)
-        except (TypeError, ValueError):
-            age = _SESSION_TTL_SECONDS + 1  # corrupt timestamp — treat as expired
-        if age < _SESSION_TTL_SECONDS:
-            g._aj_user = cached
-            return g._aj_user
-        session.pop(_SESSION_KEY, None)
-        session.pop(_CACHED_AT_KEY, None)
+    ttl = current_app.config.get('AJ_SESSION_TTL_SECONDS', _SESSION_TTL_SECONDS)
+    if isinstance(cached, dict) and cached and session_is_fresh(cached_at, ttl, time.time()):
+        g._aj_user = cached
+        return cached
+    session.pop(_SESSION_KEY, None)
+    session.pop(_CACHED_AT_KEY, None)
 
     xapp_token = request.args.get('token')
     if xapp_token:
@@ -433,11 +435,7 @@ def require_auth(fn=None, *, role=None, json=False):
         def wrapper(*args, **kwargs):
             user = _get_or_validate_user()
             if not user:
-                if json:
-                    return jsonify({'error': 'Unauthorized'}), 401
-                login_url = f'{_HQ_BASE}/login'
-                next_url = request.url.split('?')[0] if request.args.get('token') else request.url
-                return redirect(f'{login_url}?next={quote(next_url, safe="")}')
+                return _auth_failure(json_route=json)
             token_cleanup = _token_cleanup_redirect(json_route=json)
             if token_cleanup is not None:
                 return token_cleanup
@@ -448,6 +446,7 @@ def require_auth(fn=None, *, role=None, json=False):
                     abort(403)
             g.user = user
             return f(*args, **kwargs)
+        wrapper._aj_json_route = json
         return wrapper
 
     if fn is not None:
@@ -463,7 +462,7 @@ def require_auth(fn=None, *, role=None, json=False):
 # other proxy route already requires @require_auth; these are the exceptions,
 # baked in here so an app adopting require_auth_by_default() doesn't have to
 # remember to re-list them).
-_AJ_ALWAYS_PUBLIC_PATHS = ('/api/apps', '/auth/validate', '/auth/logout', '/api/contract', '/static/')
+_AJ_ALWAYS_PUBLIC_PATHS = ('/api/apps', '/auth/validate', '/auth/logout', '/auth/account', '/api/contract', '/static/')
 
 
 def require_auth_by_default(app, public_paths=None):
@@ -474,10 +473,10 @@ def require_auth_by_default(app, public_paths=None):
     public" — a route a developer forgets to decorate fails safe (redirects
     to login) instead of failing open (silently public).
 
-    public_paths: path prefixes that should stay public on THIS app — e.g.
+    public_paths: exact endpoints or trailing-slash directory prefixes that should stay public on THIS app — e.g.
     an unguessable-token public booking or submission surface for people
     outside the AJ ecosystem (freelancers, clients). Matched via
-    str.startswith(), so '/book/' covers everything under it.
+    exact matching unless a trailing slash explicitly allows a subtree.
 
         require_auth_by_default(app, public_paths=['/book/', '/event/'])
         require_auth_by_default(app, public_paths=['/s/'])
@@ -491,19 +490,20 @@ def require_auth_by_default(app, public_paths=None):
     @require_auth decorator only — adopting this is an explicit choice per
     app, not automatic just from installing aj-shared.
     """
+    configure_core(app)
     allow = tuple(public_paths or ()) + _AJ_ALWAYS_PUBLIC_PATHS
 
     @app.before_request
     def _aj_default_deny():
         path = request.path
-        if any(path.startswith(p) for p in allow):
+        if path_is_public(path, allow):
             return None
+        view = app.view_functions.get(request.endpoint)
+        json_route = bool(getattr(view, '_aj_json_route', False) or path.startswith('/api/') or request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest')
         user = _get_or_validate_user()
         if not user:
-            login_url = f'{_HQ_BASE}/login'
-            next_url = request.url.split('?')[0] if request.args.get('token') else request.url
-            return redirect(f'{login_url}?next={quote(next_url, safe="")}')
-        token_cleanup = _token_cleanup_redirect()
+            return _auth_failure(json_route=json_route)
+        token_cleanup = _token_cleanup_redirect(json_route=json_route)
         if token_cleanup is not None:
             return token_cleanup
         g.user = user

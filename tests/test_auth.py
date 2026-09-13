@@ -1,3 +1,4 @@
+import time
 import unittest
 from unittest import mock
 
@@ -165,7 +166,7 @@ class AuthSecurityTests(unittest.TestCase):
                     local_session["_aj_user"] = {
                         "id": "u1", "role": "staff", "tags": tags,
                     }
-                    local_session["_aj_user_cached_at"] = 9_999_999_999.0
+                    local_session["_aj_user_cached_at"] = time.time()
                 response = client.get(f"/tag/{requested}")
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.get_json(), {"present": expected})
