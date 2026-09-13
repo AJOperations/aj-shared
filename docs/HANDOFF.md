@@ -1,3 +1,9 @@
+## Foundation release result — 2026-09-13
+
+Published immutable [v2.2.0](https://github.com/AJOperations/aj-shared/releases/tag/v2.2.0) at `37c45512df3eab635a7c2de20198b416ca9b7c7d` after PR #11. Exact-main [Python 3.9/3.14 CI](https://github.com/AJOperations/aj-shared/actions/runs/34785884184) passed. The final installed wheel passed all 328 tests (two upstream deprecation warnings). The first isolated test copy omitted repository-only workflow/fixture inputs; after copying those inputs, all tests passed against the installed wheel, with its import path verified outside the source checkout.
+
+Wheel and source archive are attached with SHA256SUMS. Fresh actual remote-tag installation resolved the exact release SHA and passed the four-item attention compatibility probe. Both downloaded asset checksums matched. No PyPI publication or consumer update occurred. Preserve v2.1.1 for rollback; Home/real-consumer validation, operational policy and live-source integrations remain pending.
+
 <!-- Current approval supersedes the historical local-only execution boundary below. -->
 
 **Publication authorization — 2026-09-13:** Christine approved the recommended Core-first source publication and independent Shared/UI foundation releases. Home releases and all real-consumer adoption remain deferred. Preserve Core's untagged 1.0.0-rc.1 candidate; publish Shared 2.2.0 and UI 0.2.0 only after their release checks pass. Main publication can trigger existing automatic hosting builds; no manual deployment or infrastructure/credential change is included.
